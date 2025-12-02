@@ -27,6 +27,7 @@ import {
   ArrowUp,
   Image as ImageIcon,
   Paperclip,
+  Plus,
   Square,
   X,
 } from "lucide-react";
@@ -580,6 +581,71 @@ const MessageInputSubmitButton = React.forwardRef<
 });
 MessageInputSubmitButton.displayName = "MessageInput.SubmitButton";
 
+/**
+ * Props for the MessageInputNewThreadButton component.
+ * Extends standard ButtonHTMLAttributes.
+ */
+export interface MessageInputNewThreadButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  /** Optional content to display inside the button. */
+  children?: React.ReactNode;
+  /** Callback when a new thread is created */
+  onNewThread?: () => void;
+}
+
+/**
+ * New thread button component for starting a new conversation.
+ * Uses the same styling as the submit button but with a plus icon.
+ * @component MessageInput.NewThreadButton
+ * @example
+ * ```tsx
+ * <MessageInput>
+ *   <MessageInput.Textarea />
+ *   <MessageInput.Toolbar>
+ *     <MessageInput.NewThreadButton />
+ *     <MessageInput.SubmitButton />
+ *   </MessageInput.Toolbar>
+ * </MessageInput>
+ * ```
+ */
+const MessageInputNewThreadButton = React.forwardRef<
+  HTMLButtonElement,
+  MessageInputNewThreadButtonProps
+>(({ className, children, onNewThread, ...props }, ref) => {
+  const { startNewThread } = useTamboThread();
+  const isUpdatingToken = useIsTamboTokenUpdating();
+
+  const handleNewThread = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    await startNewThread();
+    onNewThread?.();
+  };
+
+  const buttonClasses = cn(
+    "w-10 h-10 rounded-lg border border-border bg-background text-foreground transition-colors hover:bg-muted disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+    className,
+  );
+
+  return (
+    <Tooltip content="New Thread" side="top">
+      <button
+        ref={ref}
+        type="button"
+        disabled={isUpdatingToken}
+        onClick={handleNewThread}
+        className={buttonClasses}
+        aria-label="Start new thread"
+        data-slot="message-input-new-thread"
+        {...props}
+      >
+        {children ?? <Plus className="w-5 h-5" />}
+      </button>
+    </Tooltip>
+  );
+});
+MessageInputNewThreadButton.displayName = "MessageInput.NewThreadButton";
+
 const MCPIcon = () => {
   return (
     <svg
@@ -1074,6 +1140,7 @@ export {
   MessageInputMcpConfigButton,
   MessageInputMcpPromptButton,
   MessageInputMcpResourceButton,
+  MessageInputNewThreadButton,
   MessageInputStagedImages,
   MessageInputSubmitButton,
   MessageInputTextarea,

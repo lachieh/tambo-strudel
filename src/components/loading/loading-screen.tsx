@@ -1,5 +1,6 @@
 "use client";
 
+import { useLoadingContext } from "@/components/loading/context";
 import { cn } from "@/lib/utils";
 import * as React from "react";
 
@@ -15,11 +16,10 @@ export interface LoadingScreenProps {
 }
 
 export function LoadingScreen({
-  status = "Initializing...",
-  progress = 0,
-  isComplete = false,
   onStart,
 }: LoadingScreenProps) {
+  const { isReady, message, progress} = useLoadingContext()
+
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background">
       <div className="flex flex-col items-center gap-6 max-w-md px-8">
@@ -37,18 +37,18 @@ export function LoadingScreen({
             <div
               className={cn(
                 "h-full bg-primary transition-all duration-300",
-                !isComplete && "animate-pulse"
+                !isReady && "animate-pulse"
               )}
               style={{ width: `${Math.min(progress, 100)}%` }}
             />
           </div>
           <p className="text-xs text-muted-foreground mt-2 text-center">
-            {status}
+            {message}
           </p>
         </div>
 
         {/* Start Button (only shown if onStart is provided) */}
-        {isComplete && onStart && (
+        {isReady && onStart && (
           <button
             onClick={onStart}
             className={cn(
