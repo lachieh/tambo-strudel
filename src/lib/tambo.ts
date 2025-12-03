@@ -13,6 +13,7 @@ import type { InitialTamboThreadMessage, TamboComponent, TamboTool } from "@tamb
 import { validateAndUpdateRepl } from "@/strudel/tools/validateAndUpdateRepl";
 import { listSamples } from "@/strudel/tools/listSamples";
 import { STRUDEL_SYSTEM_PROMPT } from "@/strudel/lib/prompt";
+import { MultiSelectForm, multiSelectFormSchema } from "@/components/tambo/multi-select-form";
 
 /**
  * tools
@@ -24,10 +25,17 @@ export const tools: TamboTool[] = [validateAndUpdateRepl, listSamples];
 /**
  * components
  *
- * No rendered components - the REPL is placed directly on the page and
- * updated via the updateRepl tool.
+ * Tambo components that can be rendered by the AI.
  */
-export const components: TamboComponent[] = [];
+export const components: TamboComponent[] = [
+  {
+    name: "MultiSelectForm",
+    description:
+      "A general-purpose multi-select form component. Renders labeled groups of toggle buttons where users can select multiple options within each group. Uses Tambo state to track user selections in AI context. Use for any scenario where the user needs to pick from categorized options (sounds, features, settings, categories, tags, etc.).",
+    component: MultiSelectForm,
+    propsSchema: multiSelectFormSchema,
+  },
+];
 
 export const initialMessages: InitialTamboThreadMessage[] = [
   {
