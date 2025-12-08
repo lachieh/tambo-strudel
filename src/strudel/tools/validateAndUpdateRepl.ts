@@ -1,6 +1,6 @@
 import { StrudelService } from "@/strudel/lib/service";
 import { TamboTool } from "@tambo-ai/react";
-import { z } from "zod";
+import { z } from "zod/v3";
 
 const service = StrudelService.instance();
 

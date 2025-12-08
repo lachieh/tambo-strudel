@@ -53,7 +53,7 @@ export function StrudelProvider({ children }: { children: React.ReactNode }) {
       loadingUnsubscribe();
       replUnsubscribe();
     };
-  }, [strudelService, setReplState]);
+  }, [setMessage, setProgress, setReplState, setState]);
 
   const setRoot = React.useCallback((el: HTMLDivElement) => {
     strudelService.attach(el);
@@ -61,7 +61,7 @@ export function StrudelProvider({ children }: { children: React.ReactNode }) {
     return () => {
       strudelService.detach();
     };
-  }, [strudelService]);
+  }, []);
 
   const providerValue: StrudelContextValue = React.useMemo(() => {
     const { started: isPlaying, code } = replState || { started: false, code: '' };
@@ -76,7 +76,7 @@ export function StrudelProvider({ children }: { children: React.ReactNode }) {
       setThreadId: strudelService.setThreadId,
       isReady: strudelService.isReady,
     }
-  }, [setRoot, strudelService.isReady, replState, strudelService]);
+  }, [setRoot, replState]);
 
   return (
     <StrudelContext.Provider value={providerValue}>{children}</StrudelContext.Provider>

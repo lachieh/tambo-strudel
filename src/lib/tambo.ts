@@ -13,7 +13,7 @@
  * Read more about Tambo at https://tambo.co/docs
  */
 
-import type { TamboComponent, TamboTool } from "@tambo-ai/react";
+import type { InitialTamboThreadMessage, TamboComponent, TamboTool } from "@tambo-ai/react";
 import { validateAndUpdateRepl } from "@/strudel/tools/validateAndUpdateRepl";
 import { listSamples } from "@/strudel/tools/listSamples";
 import { STRUDEL_SYSTEM_PROMPT } from "@/strudel/lib/prompt";

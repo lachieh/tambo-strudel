@@ -21,7 +21,7 @@ import { StrudelRepl } from "@/strudel/components/strudel-repl";
 import { LoadingScreen } from "@/components/loading/loading-screen";
 import { components, tools } from "@/lib/tambo";
 import { LoadingContextProvider } from "@/components/loading/context";
-import type { Suggestion, TamboThreadMessage } from "@tambo-ai/react";
+import type { Suggestion } from "@tambo-ai/react";
 import { TamboProvider, useTamboThread, useTamboThreadList } from "@tambo-ai/react";
 import * as React from "react";
 import { Frame } from "@/components/layout/frame";
@@ -73,13 +73,13 @@ function AppContent() {
       startNewThread();
     }
     setThreadInitialized(true);
-  }, [threadListLoaded, threadList, threadInitialized, switchCurrentThread, startNewThread]);
+  }, [threadListLoaded, threadList, threadInitialized, switchCurrentThread, startNewThread, strudelIsReady]);
 
   React.useEffect(() => {
     if (thread) {
       setThreadId(thread.id);
     }
-  }, [thread]);
+  }, [setThreadId, thread]);
 
   if (isPending || !strudelIsReady) {
     return <LoadingScreen />;
