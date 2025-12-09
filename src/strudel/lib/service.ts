@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * Strudel Service V2
  *
@@ -49,6 +51,9 @@ export class StrudelService {
   // Callbacks
   private loadingCallbacks: LoadingCallback[] = [];
   private stateChangeCallbacks: CodeChangeCallback[] = [];
+  private errorCallbacks: ((error: Error) => void)[] = [];
+
+  // Repl state
   private _state: StrudelReplState = { code: DEFAULT_CODE, started: false } as StrudelReplState;
 
   private constructor(options: StrudelServiceOptions = {}) {
@@ -110,7 +115,7 @@ export class StrudelService {
     if (this.isReady) return;
     
     await this.attach(document.createElement("div"));
-
+    
     // @ts-expect-error -- expose for debugging
     window.__strudel = this;
   }
@@ -190,7 +195,7 @@ export class StrudelService {
   /**
    * Get the current thread ID
    */
-  getThreadId(): string | null {
+  getThreadId = (): string | null => {
     return this.currentThreadId;
   }
 
@@ -289,10 +294,42 @@ export class StrudelService {
     setTheme(themeSettings);
   }
 
+  prebake = async (): Promise<void> => {
+    initAudioOnFirstClick(); // needed to make the browser happy (don't await this here..)
+
+    let totalWeight = 0;
+    let loadedWeight = 0;
+    const loadAndReport = async <T>(p: Promise<T>, message: string, weight: number): Promise<T> => {
+      totalWeight += weight;
+      await p;
+      loadedWeight += weight;
+      const progress = Math.floor((loadedWeight / totalWeight) * 100);
+      this.notifyLoading(message, progress);
+      return p;
+    };
+
+    const core = loadAndReport(import('@strudel/core'), "Loaded core module", 20);
+    const draw = loadAndReport(import('@strudel/draw'), "Loaded draw module", 20);
+    const mini = loadAndReport(import('@strudel/mini'), "Loaded mini module", 20);
+    const tonal = loadAndReport(import('@strudel/tonal'), "Loaded tonal module", 20);
+    const webAudio = loadAndReport(import('@strudel/webaudio'), "Loaded webaudio module", 20);
+    const loadModules = evalScope(core, draw, mini, tonal, webAudio);
+
+    const sampleList = prebake().map(([name, sample]) => {
+      return loadAndReport(sample, `Loaded sample: ${name}`, 30);
+    });
+    
+    const synthSounds = loadAndReport(registerSynthSounds(), "Loaded synth sounds", 30);
+    
+    await Promise.all([loadModules, synthSounds, ...sampleList]);
+
+    this.isAudioInitialized = true;
+  }
+
   /**
    * Attach the StrudelMirror editor to an HTML element
    */
-  async attach(container: HTMLElement): Promise<void> {
+  attach = async (container: HTMLElement): Promise<void> => {
     const { StrudelMirror } = await import("@strudel/codemirror");
 
     // If already attached to this container, do nothing
@@ -308,44 +345,8 @@ export class StrudelService {
 
     this.containerElement.innerHTML = "";
 
-    const prebakePromise = async () => {
-      initAudioOnFirstClick(); // needed to make the browser happy (don't await this here..)
-
-      let totalWeight = 0;
-      let loadedWeight = 0;
-      const loadAndReport = async <T>(p: Promise<T>, message: string, weight: number): Promise<T> => {
-        totalWeight += weight;
-        await p;
-        loadedWeight += weight;
-        const progress = Math.floor((loadedWeight / totalWeight) * 100);
-        this.notifyLoading(message, progress);
-        return p;
-      };
-
-      const core = loadAndReport(import('@strudel/core'), "Loaded core module", 20);
-      const draw = loadAndReport(import('@strudel/draw'), "Loaded draw module", 20);
-      const mini = loadAndReport(import('@strudel/mini'), "Loaded mini module", 20);
-      const tonal = loadAndReport(import('@strudel/tonal'), "Loaded tonal module", 20);
-      const webAudio = loadAndReport(import('@strudel/webaudio'), "Loaded webaudio module", 20);
-      const loadModules = evalScope(core, draw, mini, tonal, webAudio);
-
-      const sampleList = prebake().map(([name, sample]) => {
-        return loadAndReport(sample, `Loaded sample: ${name}`, 30);
-      });
-      
-      const synthSounds = loadAndReport(registerSynthSounds(), "Loaded synth sounds", 30);
-      
-      await Promise.all([loadModules, synthSounds, ...sampleList]);
-      this.isAudioInitialized = true;
-      this.notifyLoading("Ready", 100);
-
-      if (oldEditor) {
-        oldEditor.dispose?.();
-      }
-    }
-
     // Create the editor
-    const editor = new StrudelMirror({
+    this.editorInstance = new StrudelMirror({
       root: this.containerElement,
       initialCode: this.getSavedCode() ?? DEFAULT_CODE,
       transpiler,
@@ -356,13 +357,18 @@ export class StrudelService {
       onUpdateState: (state) => {
         this.notifyStateChange(state);
       },
-      prebake: prebakePromise,
+      prebake: this.prebake,
     });
     
-    await prebakePromise();
+    await this.prebake();
 
-    this.editorInstance = editor;
+    if (oldEditor) {
+      oldEditor.dispose?.();
+    }
+
     this.fixTheme();
+    this.notifyLoading("Ready", 100);
+    this.notifyStateChange(this.editorInstance.repl.state);
   }
 
   /**
@@ -391,8 +397,8 @@ export class StrudelService {
   // Playback Control
   // ============================================
 
-  play = (): void => {
-    this.editorInstance?.evaluate();
+  play = async (): Promise<void> => {
+    return await this.editorInstance?.evaluate();
   }
   
   stop = (): void => {
@@ -414,9 +420,8 @@ export class StrudelService {
     code: string
   ) => {
     try {
-      await this.evaluate(code);
       await this.setCode(code);
-      this.play();
+      await this.play();
       return { success: true, code };
     } catch (error) {
       return { success: false, error: (error as Error).message };
@@ -429,6 +434,19 @@ export class StrudelService {
   reset = (): void => {
     this.stop();
     this.setCode(DEFAULT_CODE);
+  }
+
+  onReplError(callback: (error: Error) => void): () => void {
+    this.errorCallbacks.push(callback);
+    return () => {
+      this.errorCallbacks = this.errorCallbacks.filter(
+        (cb) => cb !== callback
+      );
+    };
+  }
+
+  private notifyReplError(error: Error): void {
+    this.errorCallbacks.forEach((cb) => cb(error));
   }
 
   // ============================================

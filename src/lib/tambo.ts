@@ -13,10 +13,9 @@
  * Read more about Tambo at https://tambo.co/docs
  */
 
-import type { InitialTamboThreadMessage, TamboComponent, TamboTool } from "@tambo-ai/react";
+import type { TamboComponent, TamboTool } from "@tambo-ai/react";
 import { validateAndUpdateRepl } from "@/strudel/tools/validateAndUpdateRepl";
 import { listSamples } from "@/strudel/tools/listSamples";
-import { STRUDEL_SYSTEM_PROMPT } from "@/strudel/lib/prompt";
 import { MultiSelectForm, multiSelectFormSchema } from "@/components/tambo/multi-select-form";
 
 /**
@@ -40,10 +39,3 @@ export const components: TamboComponent[] = [
     propsSchema: multiSelectFormSchema,
   },
 ];
-
-export const initialMessages: InitialTamboThreadMessage[] = [
-  {
-    role: "system",
-    content: [{ type: "text", text: STRUDEL_SYSTEM_PROMPT }],
-  },
-]

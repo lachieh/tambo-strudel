@@ -17,6 +17,13 @@ import {
   ThreadContent,
   ThreadContentMessages,
 } from "@/components/tambo/thread-content";
+import {
+  ThreadHistory,
+  ThreadHistoryHeader,
+  ThreadHistoryNewButton,
+  ThreadHistorySearch,
+  ThreadHistoryList,
+} from "@/components/tambo/thread-history";
 import { StrudelRepl } from "@/strudel/components/strudel-repl";
 import { LoadingScreen } from "@/components/loading/loading-screen";
 import { components, tools } from "@/lib/tambo";
@@ -57,23 +64,26 @@ const strudelSuggestions: Suggestion[] = [
 function AppContent() {
   const [threadInitialized, setThreadInitialized] = React.useState(false);
   const { isPending } = useLoadingState();
-  const { isReady: strudelIsReady, setThreadId } = useStrudel();
+  const { isReady: strudelIsReady, getThreadId, setThreadId } = useStrudel();
   const { thread, startNewThread, switchCurrentThread } = useTamboThread();
-  const { data: threadList, isSuccess: threadListLoaded } = useTamboThreadList({ contextKey: CONTEXT_KEY });
+  const { data: threadList, isSuccess: threadListLoaded } = useTamboThreadList({
+    contextKey: CONTEXT_KEY + getThreadId(),
+  });
 
   // Load existing thread or create new one when app starts
   React.useEffect(() => {
     if (!strudelIsReady || !threadListLoaded || threadInitialized) return;
 
     const existingThreads = threadList?.items ?? [];
-    if (existingThreads.length > 0) {
+    const threadId = getThreadId();
+    if (threadId && existingThreads.length > 0) {
       const mostRecentThread = existingThreads[0];
       switchCurrentThread(mostRecentThread.id, true);
     } else {
       startNewThread();
     }
     setThreadInitialized(true);
-  }, [threadListLoaded, threadList, threadInitialized, switchCurrentThread, startNewThread, strudelIsReady]);
+  }, [threadListLoaded, threadList, threadInitialized, switchCurrentThread, startNewThread, strudelIsReady, getThreadId]);
 
   React.useEffect(() => {
     if (thread) {
@@ -121,23 +131,35 @@ function AppContent() {
           </div>
         </SidebarContent>
       </Sidebar>
+
+      {/* Thread History Sidebar */}
+      <ThreadHistory
+        contextKey={CONTEXT_KEY + getThreadId()}
+        position="right"
+        defaultCollapsed={true}
+      >
+        <ThreadHistoryHeader />
+        <ThreadHistoryNewButton />
+        <ThreadHistorySearch />
+        <ThreadHistoryList />
+      </ThreadHistory>
     </Frame>
   );
 }
 
 export default function Home() {
   return (
-    <TamboProvider
-      tamboUrl={process.env.NEXT_PUBLIC_TAMBO_URL}
-      apiKey={process.env.NEXT_PUBLIC_TAMBO_API_KEY!}
-      tools={tools}
-      components={components}
-    >
-      <LoadingContextProvider>
-        <StrudelProvider>
+    <LoadingContextProvider>
+      <StrudelProvider>
+        <TamboProvider
+          tamboUrl={process.env.NEXT_PUBLIC_TAMBO_URL}
+          apiKey={process.env.NEXT_PUBLIC_TAMBO_API_KEY!}
+          tools={tools}
+          components={components}
+        >
           <AppContent />
-        </StrudelProvider>
-      </LoadingContextProvider>
-    </TamboProvider>
+        </TamboProvider>
+      </StrudelProvider>
+    </LoadingContextProvider>
   );
 }
