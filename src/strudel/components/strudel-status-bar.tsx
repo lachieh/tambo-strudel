@@ -18,7 +18,7 @@ export function StrudelStatusBar() {
       {error && (
         <div className="px-3 py-2 text-destructive border-t border-destructive/30">
           <div className="w-full"><button className="" onClick={handleFixError}><BotIcon /> Fix Error</button></div>
-          <div>{error}</div>
+          <div>{typeof error === 'string' ? error : error.message}</div>
         </div>
       )}
       <div className="px-3 py-1.5 border-t border-border text-muted-foreground flex items-center justify-between">

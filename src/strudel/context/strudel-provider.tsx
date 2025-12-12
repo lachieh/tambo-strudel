@@ -7,8 +7,9 @@ import * as React from "react";
 
 type StrudelContextValue = {
   code: string,
-  error: string | null,
+  error: string | Error | null,
   setCode: (code: string, shouldPlay?: boolean) => void,
+  setThreadId: (threadId: string | null) => void,
   isPlaying: boolean,
   play: () => void,
   stop: () => void,
@@ -71,6 +72,10 @@ export function StrudelProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const setThreadId = React.useCallback((threadId: string | null) => {
+    strudelService.setThreadId(threadId);
+  }, []);
+
   const providerValue: StrudelContextValue = React.useMemo(() => {
     const { started: isPlaying, code, evalError, schedulerError } = replState || { started: false, code: '' };
     return {
@@ -78,13 +83,14 @@ export function StrudelProvider({ children }: { children: React.ReactNode }) {
       error: evalError || schedulerError || null,
       isPlaying,
       setCode,
+      setThreadId,
       play: async () => await strudelService.play(),
       stop: strudelService.stop,
       reset: strudelService.reset,
       setRoot,
       isReady: strudelService.isReady,
     }
-  }, [setRoot, setCode, replState]);
+  }, [setRoot, setCode, setThreadId, replState]);
 
   return (
     <StrudelContext.Provider value={providerValue}>{children}</StrudelContext.Provider>
