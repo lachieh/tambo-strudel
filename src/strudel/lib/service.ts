@@ -44,6 +44,11 @@ export class StrudelService {
   // Repl state
   private _state: StrudelReplState = { code: DEFAULT_CODE, started: false } as StrudelReplState;
 
+  // Thread/persistence state
+  private currentThreadId: string | null = null;
+  private isInitializing = false;
+  private static readonly STORAGE_PREFIX = "strudel-code-";
+
   private constructor() {}
 
   /**
@@ -121,6 +126,55 @@ export class StrudelService {
   }
 
   // ============================================
+  // Code Persistence
+  // ============================================
+
+  private getSavedCode(threadId: string): string | null {
+    if (typeof window === "undefined") return null;
+    try {
+      return localStorage.getItem(StrudelService.STORAGE_PREFIX + threadId);
+    } catch {
+      return null;
+    }
+  }
+
+  private saveCode(): void {
+    if (typeof window === "undefined" || !this.currentThreadId) return;
+    // Skip saving for placeholder threads (temporary IDs before server assigns real ID)
+    if (this.currentThreadId.includes("placeholder")) return;
+    try {
+      localStorage.setItem(
+        StrudelService.STORAGE_PREFIX + this.currentThreadId,
+        this._state.code
+      );
+    } catch {
+      // Ignore storage errors
+    }
+  }
+
+  /**
+   * Set the current thread ID and load its saved code
+   */
+  setThreadId(threadId: string | null): void {
+    if (threadId === this.currentThreadId) return;
+
+    // Save current thread's code before switching
+    if (this.currentThreadId) {
+      this.saveCode();
+    }
+
+    this.currentThreadId = threadId;
+
+    // Load code for new thread
+    if (threadId && this.editorInstance) {
+      const savedCode = this.getSavedCode(threadId);
+      if (savedCode) {
+        this.setCode(savedCode);
+      }
+    }
+  }
+
+  // ============================================
   // State Change Callbacks
   // ============================================
 
@@ -143,6 +197,11 @@ export class StrudelService {
   private notifyStateChange(state: StrudelReplState): void {
     this._state = state;
     this.stateChangeCallbacks.forEach((cb) => cb(state));
+
+    // Auto-save on code change (skip during initialization)
+    if (!this.isInitializing) {
+      this.saveCode();
+    }
   }
 
   // ============================================
@@ -254,36 +313,53 @@ export class StrudelService {
       return;
     }
 
-    const oldEditor = this.editorInstance;
-    this.containerElement = container;
-    this.containerElement.innerHTML = "";
+    this.isInitializing = true;
 
-    // Create the editor
-    this.editorInstance = new StrudelMirror({
-      root: this.containerElement,
-      initialCode: DEFAULT_CODE,
-      transpiler,
-      defaultOutput: webaudioOutput,
-      getTime: () => getAudioContext().currentTime,
-      drawTime: [0, -2],
-      drawContext: getDrawContext(),
-      onUpdateState: (state) => {
-        this.notifyStateChange(state);
-      },
-      prebake: this.prebake,
-    });
+    try {
+      // Preserve current code when reattaching to a new container
+      const currentCode = this._state.code || DEFAULT_CODE;
 
-    await this.prebake();
+      const oldEditor = this.editorInstance;
+      this.containerElement = container;
+      this.containerElement.innerHTML = "";
 
-    if (oldEditor) {
-      oldEditor.dispose?.();
+      // Create the editor
+      this.editorInstance = new StrudelMirror({
+        root: this.containerElement,
+        initialCode: currentCode,
+        transpiler,
+        defaultOutput: webaudioOutput,
+        getTime: () => getAudioContext().currentTime,
+        drawTime: [0, -2],
+        drawContext: getDrawContext(),
+        onUpdateState: (state) => {
+          this.notifyStateChange(state);
+        },
+        prebake: this.prebake,
+      });
+
+      await this.prebake();
+
+      if (oldEditor) {
+        oldEditor.dispose?.();
+      }
+
+      // Sync the REPL's internal state with the editor's actual code
+      // This is necessary because StrudelMirror doesn't sync initialCode to repl.state
+      this.editorInstance.repl.setCode(currentCode);
+
+      // Load saved code for current thread if we don't already have code
+      if (this.currentThreadId && currentCode === DEFAULT_CODE) {
+        const savedCode = this.getSavedCode(this.currentThreadId);
+        if (savedCode) {
+          this.setCode(savedCode);
+        }
+      }
+
+      this.fixTheme();
+    } finally {
+      this.isInitializing = false;
     }
-
-    // Sync the REPL's internal state with the editor's actual code
-    // This is necessary because StrudelMirror doesn't sync initialCode to repl.state
-    this.editorInstance.repl.setCode(this.editorInstance.code);
-
-    this.fixTheme();
     this.notifyLoading("Ready", 100);
     this.notifyStateChange(this.editorInstance.repl.state);
   }
