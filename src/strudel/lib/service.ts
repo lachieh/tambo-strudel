@@ -155,8 +155,13 @@ export class StrudelService {
     if (typeof window === "undefined") return;
     if (!this.currentThreadId) return;
     if (!this.editorInstance) return;
-    
+
     const savedCode = this.getSavedCode(this.currentThreadId) ?? DEFAULT_CODE;
+
+    // Update internal state immediately to prevent flash of old content
+    this._state = { ...this._state, code: savedCode };
+    this.stateChangeCallbacks.forEach((cb) => cb(this._state));
+
     this.setCode(savedCode);
   }
 
@@ -302,10 +307,6 @@ export class StrudelService {
 
     const oldEditor = this.editorInstance;
     this.containerElement = container;
-
-    // Determine initial code
-    this.loadCode();
-
     this.containerElement.innerHTML = "";
 
     const prebakePromise = async () => {
@@ -362,6 +363,16 @@ export class StrudelService {
     await prebakePromise();
 
     this.editorInstance = editor;
+
+    // Sync the REPL's internal state with the editor's actual code
+    // This is necessary because StrudelMirror doesn't sync initialCode to repl.state
+    this.editorInstance.repl.setCode(this.editorInstance.code);
+
+    // Load thread-specific code if we have a threadId
+    if (this.currentThreadId) {
+      this.loadCode();
+    }
+
     this.fixTheme();
   }
 

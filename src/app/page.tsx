@@ -19,9 +19,10 @@ import {
 } from "@/components/tambo/thread-content";
 import { StrudelRepl } from "@/strudel/components/strudel-repl";
 import { LoadingScreen } from "@/components/loading/loading-screen";
+import { ApiKeyMissing } from "@/components/api-key-missing";
 import { components, tools } from "@/lib/tambo";
 import { LoadingContextProvider } from "@/components/loading/context";
-import type { Suggestion, TamboThreadMessage } from "@tambo-ai/react";
+import type { Suggestion } from "@tambo-ai/react";
 import { TamboProvider, useTamboThread, useTamboThreadList } from "@tambo-ai/react";
 import * as React from "react";
 import { Frame } from "@/components/layout/frame";
@@ -30,6 +31,21 @@ import { Sidebar, SidebarContent } from "@/components/layout/sidebar";
 import { useLoadingContext as useLoadingState } from "@/components/loading/context";
 import { StrudelProvider, useStrudel } from "@/strudel/context/strudel-provider";
 import { StrudelStatusBar } from "@/strudel/components/strudel-status-bar";
+import { StrudelService } from "@/strudel/lib/service";
+
+/**
+ * Context helper that provides the current Strudel REPL state to the AI.
+ * This allows the AI to see what code is currently in the editor.
+ */
+const strudelContextHelper = () => {
+  const service = StrudelService.instance();
+  const state = service.getReplState();
+
+  return {
+    currentCode: state?.code ?? "",
+    isPlaying: state?.started ?? false,
+  };
+};
 
 const CONTEXT_KEY = "strudel-ai";
 
@@ -73,15 +89,15 @@ function AppContent() {
       startNewThread();
     }
     setThreadInitialized(true);
-  }, [threadListLoaded, threadList, threadInitialized, switchCurrentThread, startNewThread]);
+  }, [strudelIsReady, threadListLoaded, threadList, threadInitialized, switchCurrentThread, startNewThread]);
 
   React.useEffect(() => {
     if (thread) {
       setThreadId(thread.id);
     }
-  }, [thread]);
+  }, [thread, setThreadId]);
 
-  if (isPending || !strudelIsReady) {
+  if (isPending || !strudelIsReady || !thread) {
     return <LoadingScreen />;
   }
 
@@ -126,12 +142,21 @@ function AppContent() {
 }
 
 export default function Home() {
+  const apiKey = process.env.NEXT_PUBLIC_TAMBO_API_KEY;
+
+  if (!apiKey) {
+    return <ApiKeyMissing />;
+  }
+
   return (
     <TamboProvider
       tamboUrl={process.env.NEXT_PUBLIC_TAMBO_URL}
-      apiKey={process.env.NEXT_PUBLIC_TAMBO_API_KEY!}
+      apiKey={apiKey}
       tools={tools}
       components={components}
+      contextHelpers={{
+        strudelState: strudelContextHelper,
+      }}
     >
       <LoadingContextProvider>
         <StrudelProvider>
