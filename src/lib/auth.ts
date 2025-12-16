@@ -5,8 +5,10 @@ import { jazzPlugin } from "jazz-tools/better-auth/auth/server";
 import { Resend } from "resend";
 import nodemailer from "nodemailer";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 const isProduction = process.env.NODE_ENV === "production";
+
+// Only initialize Resend in production
+const resend = isProduction ? new Resend(process.env.RESEND_API_KEY) : null;
 
 // Create Ethereal test account for development (no signup required)
 let devTransport: nodemailer.Transporter | null = null;
@@ -61,6 +63,9 @@ export const auth = betterAuth({
 
         if (isProduction) {
           // Use Resend in production
+          if (!resend) {
+            throw new Error("RESEND_API_KEY is required in production");
+          }
           await resend.emails.send({
             from: process.env.EMAIL_FROM || "Strudel LM <noreply@strudel.fm>",
             to: email,
