@@ -376,6 +376,25 @@ export class StrudelService {
         onUpdateState: (state) => {
           this.notifyStateChange(state);
         },
+        onError: (error: Error) => {
+          // Capture runtime errors (including sample not found errors)
+          // and propagate them through state
+          const errorMessage = error.message || String(error);
+
+          // Check if it's a sample-related error
+          const isSampleError =
+            errorMessage.toLowerCase().includes("sample") ||
+            errorMessage.toLowerCase().includes("sound") ||
+            errorMessage.toLowerCase().includes("not found");
+
+          this._state = {
+            ...this._state,
+            schedulerError: isSampleError
+              ? new Error(`Sample error: ${errorMessage}`)
+              : error,
+          };
+          this.notifyStateChange(this._state);
+        },
         prebake: this.prebake,
       });
 
@@ -451,11 +470,45 @@ export class StrudelService {
   /**
    * Update the editor with new code and optionally play it
    * Used by external tools (like AI-generated updates)
+   *
+   * Validates that the code evaluates to a valid Strudel pattern
+   * before applying and playing it.
    */
   updateAndPlay = async (code: string) => {
     try {
       await this.setCode(code);
       await this.play();
+
+      // Check if there was an evaluation error after play
+      const state = this.getReplState();
+      if (state.evalError) {
+        const errorMsg =
+          typeof state.evalError === "string"
+            ? state.evalError
+            : state.evalError.message || String(state.evalError);
+        return {
+          success: false,
+          error: `Evaluation error: ${errorMsg}\n\nCode:\n${code}`,
+        };
+      }
+
+      // Check if the pattern is undefined (code didn't return a valid pattern)
+      // This happens when code like `console.log("hello")` is executed
+      const hasPatternField = Object.prototype.hasOwnProperty.call(
+        state,
+        "pattern",
+      );
+      if (
+        hasPatternField &&
+        state.pattern === undefined &&
+        state.activeCode === code
+      ) {
+        return {
+          success: false,
+          error: `Code must return a valid Strudel pattern. Got 'undefined' instead. Make sure your code ends with a pattern expression like s("bd sd") or note("c3 e3 g3").\n\nCode:\n${code}`,
+        };
+      }
+
       return { success: true, code };
     } catch (error) {
       return { success: false, error: (error as Error).message };
@@ -463,10 +516,24 @@ export class StrudelService {
   };
 
   /**
+   * Clear any existing errors in the state
+   */
+  clearError = (): void => {
+    // Update state to clear errors
+    this._state = {
+      ...this._state,
+      evalError: undefined,
+      schedulerError: undefined,
+    };
+    this.notifyStateChange(this._state);
+  };
+
+  /**
    * Reset the editor to default code and stop playback
    */
   reset = (): void => {
     this.stop();
+    this.clearError();
     this.setCode(DEFAULT_CODE);
   };
 

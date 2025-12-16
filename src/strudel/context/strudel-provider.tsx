@@ -15,8 +15,11 @@ type StrudelContextValue = {
   play: () => void;
   stop: () => void;
   reset: () => void;
+  clearError: () => void;
   setRoot: (el: HTMLDivElement) => void;
   isReady: boolean;
+  isAiUpdating: boolean;
+  setIsAiUpdating: (value: boolean) => void;
 };
 
 export const StrudelContext = React.createContext<StrudelContextValue | null>(
@@ -32,6 +35,7 @@ export function StrudelProvider({ children }: { children: React.ReactNode }) {
       return strudelService.getReplState();
     },
   );
+  const [isAiUpdating, setIsAiUpdating] = React.useState(false);
 
   React.useEffect(() => {
     const loadingUnsubscribe = strudelService.onLoadingProgress(
@@ -104,10 +108,13 @@ export function StrudelProvider({ children }: { children: React.ReactNode }) {
       play: async () => await strudelService.play(),
       stop: strudelService.stop,
       reset: strudelService.reset,
+      clearError: strudelService.clearError,
       setRoot,
       isReady: strudelService.isReady,
+      isAiUpdating,
+      setIsAiUpdating,
     };
-  }, [setRoot, setCode, setThreadId, replState]);
+  }, [setRoot, setCode, setThreadId, replState, isAiUpdating]);
 
   return (
     <StrudelContext.Provider value={providerValue}>
