@@ -128,14 +128,8 @@ export function useStrudelStorage(): StrudelStorageAdapter {
   const saveRepl = useCallback(
     (replId: string, code: string, name?: string): void => {
       // If authenticated and Jazz root is available, save to Jazz
-      if (account?.$isLoaded && account?.root) {
+      if (account?.$isLoaded && account?.root?.repls) {
         try {
-          // Initialize repls record if it doesn't exist
-          if (!account.root.repls) {
-            // @ts-expect-error - CoMap initialization
-            account.root.repls = {};
-          }
-
           // Cast to access by index
           const repls = account.root.repls as unknown as Record<
             string,
@@ -144,14 +138,15 @@ export function useStrudelStorage(): StrudelStorageAdapter {
           const existing = repls[replId];
           const now = Date.now();
 
-          // Save the REPL - use Object.assign to update the record
-          (account.root.repls as unknown as Record<string, unknown>)[replId] = {
+          // Save the REPL using $jazz.set
+          // @ts-expect-error - Jazz $jazz.set API
+          account.root.repls.$jazz.set(replId, {
             id: replId,
             code,
             name: name ?? existing?.name,
             createdAt: existing?.createdAt ?? now,
             lastUpdated: now,
-          };
+          });
         } catch (error) {
           console.error("Failed to save to Jazz:", error);
           // Fall back to localStorage
@@ -172,15 +167,10 @@ export function useStrudelStorage(): StrudelStorageAdapter {
       if (threadId.includes("placeholder")) return;
 
       // If authenticated and Jazz root is available, save to Jazz
-      if (account?.$isLoaded && account?.root) {
+      if (account?.$isLoaded && account?.root?.threadToRepl) {
         try {
-          if (!account.root.threadToRepl) {
-            // @ts-expect-error - CoMap initialization
-            account.root.threadToRepl = {};
-          }
-          (account.root.threadToRepl as unknown as Record<string, string>)[
-            threadId
-          ] = replId;
+          // @ts-expect-error - Jazz $jazz.set API
+          account.root.threadToRepl.$jazz.set(threadId, replId);
         } catch (error) {
           console.error("Failed to save thread mapping to Jazz:", error);
           saveThreadMappingToLocalStorage(threadId, replId);
@@ -214,8 +204,8 @@ export function useStrudelStorage(): StrudelStorageAdapter {
       // If authenticated and Jazz root is available, save to Jazz
       if (account?.$isLoaded && account?.root) {
         try {
-          // Cast to allow assignment
-          (account.root as { activeReplId: string }).activeReplId = replId;
+          // @ts-expect-error - Jazz $jazz.set API
+          account.root.$jazz.set("activeReplId", replId);
         } catch (error) {
           console.error("Failed to save active REPL to Jazz:", error);
           saveActiveReplToLocalStorage(replId);
