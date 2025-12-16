@@ -30,13 +30,21 @@ import { ApiKeyMissing } from "@/components/api-key-missing";
 import { components, tools } from "@/lib/tambo";
 import { LoadingContextProvider } from "@/components/loading/context";
 import type { Suggestion } from "@tambo-ai/react";
-import { TamboProvider, useTamboThread, useTamboThreadList } from "@tambo-ai/react";
+import {
+  TamboProvider,
+  useTamboThread,
+  useTamboThreadList,
+  useTambo,
+} from "@tambo-ai/react";
 import * as React from "react";
 import { Frame } from "@/components/layout/frame";
 import { Main } from "@/components/layout/main";
 import { Sidebar, SidebarContent } from "@/components/layout/sidebar";
 import { useLoadingContext as useLoadingState } from "@/components/loading/context";
-import { StrudelProvider, useStrudel } from "@/strudel/context/strudel-provider";
+import {
+  StrudelProvider,
+  useStrudel,
+} from "@/strudel/context/strudel-provider";
 import { StrudelStatusBar } from "@/strudel/components/strudel-status-bar";
 import { StrudelService } from "@/strudel/lib/service";
 
@@ -94,11 +102,25 @@ function AppContent() {
   const [threadInitialized, setThreadInitialized] = React.useState(false);
   const [contextKey] = React.useState(getOrCreateContextKey);
   const { isPending } = useLoadingState();
-  const { isReady: strudelIsReady, setThreadId } = useStrudel();
-  const { thread, startNewThread, switchCurrentThread } = useTamboThread();
+  const {
+    isReady: strudelIsReady,
+    setThreadId,
+    setIsAiUpdating,
+  } = useStrudel();
+  const { thread, startNewThread, switchCurrentThread, isIdle } =
+    useTamboThread();
+  const { generationStage } = useTambo();
   const { data: threadList, isSuccess: threadListLoaded } = useTamboThreadList({
     contextKey,
   });
+
+  // Track AI generation state to lock editor during updates
+  React.useEffect(() => {
+    // Show overlay when AI is actively working (not idle and in a generation stage)
+    const isGenerating =
+      !isIdle && generationStage !== "IDLE" && generationStage !== "COMPLETE";
+    setIsAiUpdating(isGenerating);
+  }, [isIdle, generationStage, setIsAiUpdating]);
 
   // Initialize: select most recent thread or create new
   React.useEffect(() => {
@@ -111,7 +133,14 @@ function AppContent() {
       startNewThread();
     }
     setThreadInitialized(true);
-  }, [strudelIsReady, threadListLoaded, threadInitialized, threadList, switchCurrentThread, startNewThread]);
+  }, [
+    strudelIsReady,
+    threadListLoaded,
+    threadInitialized,
+    threadList,
+    switchCurrentThread,
+    startNewThread,
+  ]);
 
   // Sync thread ID to Strudel service (handles code persistence)
   React.useEffect(() => {
