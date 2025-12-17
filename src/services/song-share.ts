@@ -47,41 +47,46 @@ async function ensureSchema(): Promise<void> {
   if (schemaReadyPromise) return schemaReadyPromise;
 
   schemaReadyPromise = (async () => {
-    const client = getDbClient();
-    if (client.kind === "postgres") {
-      await client.pool.query(`
-        CREATE TABLE IF NOT EXISTS song_share (
-          id text PRIMARY KEY,
-          owner_user_id text NOT NULL,
-          code text NOT NULL,
-          title text,
-          created_at bigint NOT NULL
-        );
-      `);
-      await client.pool.query(
-        `CREATE INDEX IF NOT EXISTS song_share_owner_user_id_idx ON song_share(owner_user_id);`,
-      );
-      return;
-    }
-
-    client.db
-      .prepare(
-        `
+    try {
+      const client = getDbClient();
+      if (client.kind === "postgres") {
+        await client.pool.query(`
           CREATE TABLE IF NOT EXISTS song_share (
             id text PRIMARY KEY,
             owner_user_id text NOT NULL,
             code text NOT NULL,
             title text,
-            created_at integer NOT NULL
+            created_at bigint NOT NULL
           );
-        `,
-      )
-      .run();
-    client.db
-      .prepare(
-        `CREATE INDEX IF NOT EXISTS song_share_owner_user_id_idx ON song_share(owner_user_id);`,
-      )
-      .run();
+        `);
+        await client.pool.query(
+          `CREATE INDEX IF NOT EXISTS song_share_owner_user_id_idx ON song_share(owner_user_id);`,
+        );
+        return;
+      }
+
+      client.db
+        .prepare(
+          `
+            CREATE TABLE IF NOT EXISTS song_share (
+              id text PRIMARY KEY,
+              owner_user_id text NOT NULL,
+              code text NOT NULL,
+              title text,
+              created_at integer NOT NULL
+            );
+          `,
+        )
+        .run();
+      client.db
+        .prepare(
+          `CREATE INDEX IF NOT EXISTS song_share_owner_user_id_idx ON song_share(owner_user_id);`,
+        )
+        .run();
+    } catch (err) {
+      schemaReadyPromise = null;
+      throw err;
+    }
   })();
 
   return schemaReadyPromise;

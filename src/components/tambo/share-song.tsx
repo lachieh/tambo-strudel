@@ -62,6 +62,10 @@ export const ShareSong = React.forwardRef<HTMLDivElement, ShareSongProps>(
       setCopied(false);
 
       try {
+        if (!code.trim()) {
+          throw new Error("Create or load a song before generating a share link.");
+        }
+
         const response = await fetch("/api/shares", {
           method: "POST",
           headers: {

@@ -3,9 +3,12 @@ import { createSongShare } from "@/services/song-share";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod/v3";
 
+const MAX_CODE_LENGTH = 100_000;
+const MAX_TITLE_LENGTH = 200;
+
 const createShareSchema = z.object({
-  code: z.string().min(1),
-  title: z.string().trim().min(1).optional(),
+  code: z.string().min(1).max(MAX_CODE_LENGTH),
+  title: z.string().trim().min(1).max(MAX_TITLE_LENGTH).optional(),
 });
 
 export async function POST(req: NextRequest) {

@@ -57,6 +57,10 @@ function SharedSongViewer({ code }: { code: string }) {
           <RotateCcw className="w-4 h-4" />
           Reset
         </button>
+
+        <span className="text-xs text-muted-foreground">
+          Only run songs you trust.
+        </span>
       </div>
     </div>
   );
