@@ -39,7 +39,7 @@ import {
   useTamboThreadList,
   useTambo,
 } from "@tambo-ai/react";
-import { useAccount, useIsAuthenticated } from "jazz-tools/react";
+import { useIsAuthenticated } from "jazz-tools/react";
 import * as React from "react";
 import { Frame } from "@/components/layout/frame";
 import { Main } from "@/components/layout/main";
@@ -87,19 +87,21 @@ const getOrCreateAnonymousContextKey = (): string => {
 
 // Hook to get context key (user ID if logged in, anonymous otherwise)
 function useContextKey(): string {
-  const isAuthenticated = useIsAuthenticated();
-  const account = useAccount();
+  const { isAuthenticated, isLoaded } = useStrudelStorage();
   const [anonymousKey] = React.useState(getOrCreateAnonymousContextKey);
 
-  // If user is logged in and account is loaded, use their Jazz account ID
-  // The account object itself is the CoValue with an internal ID
-  if (isAuthenticated && account?.$isLoaded) {
-    // Use a hash of the profile or a stable identifier
-    // Since account is a CoValue, we can use its internal reference
-    const accountId =
-      (account as unknown as { _raw?: { id?: string } })?._raw?.id ??
-      "authenticated";
-    return `strudel-user-${accountId}`;
+  // If user is logged in, use a persistent key stored in localStorage
+  // This ensures the same user gets the same context key across sessions
+  if (isAuthenticated && isLoaded) {
+    // For authenticated users, we use a separate persistent key
+    // that gets created once and stored (similar to anonymous key)
+    const AUTH_CONTEXT_KEY_STORAGE = "strudel-ai-auth-context-key";
+    let authKey = localStorage.getItem(AUTH_CONTEXT_KEY_STORAGE);
+    if (!authKey) {
+      authKey = `strudel-user-${crypto.randomUUID()}`;
+      localStorage.setItem(AUTH_CONTEXT_KEY_STORAGE, authKey);
+    }
+    return authKey;
   }
 
   // Otherwise use anonymous key

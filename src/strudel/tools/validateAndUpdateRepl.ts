@@ -81,6 +81,12 @@ async function validateSamples(
   const availableSounds = soundMap.get();
   const availableNames = new Set(Object.keys(availableSounds));
 
+  // Pre-compute lowercase names array once for fuzzy matching
+  const availableNamesLower = [...availableNames].map((n) => ({
+    original: n,
+    lower: n.toLowerCase(),
+  }));
+
   // Known built-in functions/keywords to ignore
   const builtins = new Set([
     "bd",
@@ -124,10 +130,10 @@ async function validateSamples(
     if (availableNames.has(name)) continue;
 
     // Check if it might be a sample with bank (e.g., "RolandTR909_bd")
-    const hasMatchingPrefix = [...availableNames].some(
-      (s) =>
-        s.toLowerCase().includes(name.toLowerCase()) ||
-        name.toLowerCase().includes(s.toLowerCase()),
+    // Use pre-computed lowercase array for O(n) instead of O(n) per iteration
+    const nameLower = name.toLowerCase();
+    const hasMatchingPrefix = availableNamesLower.some(
+      ({ lower }) => lower.includes(nameLower) || nameLower.includes(lower),
     );
     if (hasMatchingPrefix) continue;
 

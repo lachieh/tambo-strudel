@@ -61,6 +61,9 @@ async function ensureJazzColumns(pool: Pool) {
   return schemaPatchPromise;
 }
 
+// Track if database is ready for use
+let dbReadyPromise: Promise<void> | null = null;
+
 function getDatabaseConfig() {
   // Prefer Postgres when a DATABASE_URL is provided
   if (databaseUrl && databaseUrl.startsWith("postgres")) {
@@ -71,7 +74,10 @@ function getDatabaseConfig() {
     const dialect = new PostgresDialect({ pool });
 
     // Run Better Auth migrations once (creates user/session tables)
-    void ensureMigrations(dialect).then(() => ensureJazzColumns(pool));
+    // Store the promise so we can await it if needed before auth operations
+    dbReadyPromise = ensureMigrations(dialect).then(() =>
+      ensureJazzColumns(pool),
+    );
 
     return {
       dialect,
@@ -81,6 +87,16 @@ function getDatabaseConfig() {
 
   // Fallback to local SQLite for development (not persisted in prod)
   return new Database("./auth.db");
+}
+
+/**
+ * Wait for database migrations to complete.
+ * Call this before performing auth operations that require the schema to be ready.
+ */
+export async function waitForDatabase(): Promise<void> {
+  if (dbReadyPromise) {
+    await dbReadyPromise;
+  }
 }
 
 export const auth = betterAuth({

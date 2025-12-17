@@ -83,7 +83,7 @@ export function ReplTabs() {
     }
   };
 
-  const handleArchiveRepl = (replId: string, e: React.MouseEvent) => {
+  const handleArchiveRepl = async (replId: string, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent tab switch when clicking close
 
     // Don't allow archiving the last REPL
@@ -93,7 +93,20 @@ export function ReplTabs() {
     if (replId === currentReplId) {
       const otherRepl = allRepls.find((r) => r.id !== replId);
       if (otherRepl) {
+        // Stop playback before switching
+        if (isPlaying) {
+          stop();
+        }
         setReplId(otherRepl.id);
+
+        // Also switch to the other REPL's thread to keep chat and editor in sync
+        const threadId = getThreadForRepl(otherRepl.id);
+        if (threadId) {
+          await switchCurrentThread(threadId);
+        } else {
+          // No thread for the target REPL - start a new one
+          await startNewThread();
+        }
       }
     }
 

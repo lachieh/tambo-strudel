@@ -386,6 +386,11 @@ export class StrudelService {
       console.log("[Service.initializeRepl] Using first REPL:", replId);
       this.currentReplId = replId;
       this.storageAdapter.setActiveReplId(replId);
+      // Also load the code into the editor
+      const repl = this.storageAdapter.getRepl(replId);
+      if (repl?.code && this.editorInstance) {
+        this.setCode(repl.code);
+      }
       return replId;
     }
 

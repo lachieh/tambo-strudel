@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { useStrudel } from "@/strudel/context/strudel-provider";
+import { StrudelService } from "@/strudel/lib/service";
 import { useTamboThread, useTamboThreadInput } from "@tambo-ai/react";
 import { Play, Square, RotateCcw, BotIcon } from "lucide-react";
 import React from "react";
@@ -69,11 +70,21 @@ Please fix the error and update the REPL with corrected code.`;
     };
 
     try {
+      // Clear the error immediately when user requests a fix
+      StrudelService.instance().clearError();
       await sendFixRequest();
     } catch (err) {
       console.error("Failed to send fix error message:", err);
-      // If thread is invalid, try to start a new one and retry the request
-      if (String(err).toLowerCase().includes("thread")) {
+      // Check for thread-related errors more specifically
+      // Look for specific thread error patterns to avoid false positives
+      const errStr = String(err);
+      const isThreadError =
+        errStr.includes("thread not found") ||
+        errStr.includes("invalid thread") ||
+        errStr.includes("Thread does not exist") ||
+        (errStr.includes("thread") && errStr.includes("error"));
+
+      if (isThreadError) {
         try {
           await startNewThread();
           await sendFixRequest();

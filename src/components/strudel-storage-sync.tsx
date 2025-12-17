@@ -157,7 +157,7 @@ export function StrudelStorageSync() {
   const storage = useStrudelStorage();
   const migrationAttemptedRef = useRef(false);
   const initialLoadDoneRef = useRef(false);
-  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Debounced save of current code to localStorage
   // This ensures code is always preserved for recovery (e.g., after sign-out)

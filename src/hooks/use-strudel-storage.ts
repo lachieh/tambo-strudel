@@ -83,32 +83,12 @@ export function useStrudelStorage(): StrudelStorageAdapter {
   });
   const isAuthenticated = useIsAuthenticated();
 
-  // Debug: log auth state with more details
-  console.log(
-    "[useStrudelStorage] isAuthenticated:",
-    isAuthenticated,
-    "$isLoaded:",
-    account?.$isLoaded,
-    "hasRoot:",
-    account?.$isLoaded ? !!account?.root : "not loaded",
-  );
-
   const getRepl = useCallback(
     (replId: string): { code: string; name?: string } | null => {
       // If authenticated and Jazz root is available, use Jazz
       if (account?.$isLoaded && account?.root?.repls) {
         const repls = account.root.repls;
         const repl = repls[replId];
-        console.log(
-          "[useStrudelStorage.getRepl]",
-          replId,
-          "raw repl:",
-          repl,
-          "repl.code:",
-          repl?.code?.substring(0, 80),
-          "$isLoaded:",
-          (repl as unknown as { $isLoaded?: boolean })?.$isLoaded,
-        );
         if (repl && repl.code) {
           return { code: repl.code, name: repl.name };
         }
@@ -510,14 +490,6 @@ export function useStrudelStorage(): StrudelStorageAdapter {
         // Skip archived REPLs
         if (repl?.archived === true) continue;
         if (repl && typeof repl === "object" && "code" in repl) {
-          console.log(
-            "[useStrudelStorage.allRepls]",
-            key,
-            "code preview:",
-            repl.code?.substring(0, 50),
-            "$isLoaded:",
-            repl.$isLoaded,
-          );
           result.push({
             id: repl.id || key,
             name: repl.name,
