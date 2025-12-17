@@ -7,6 +7,8 @@ import { Pool } from "pg";
 import { PostgresDialect } from "kysely";
 import { getMigrations } from "better-auth/db";
 
+import { songSharePlugin } from "@/lib/song-share-schema";
+
 const isProduction = process.env.NODE_ENV === "production";
 const databaseUrl = process.env.DATABASE_URL;
 const resendSegmentId = process.env.RESEND_SEGMENT;
@@ -16,6 +18,8 @@ const resend =
   isProduction && process.env.RESEND_API_KEY
     ? new Resend(process.env.RESEND_API_KEY)
     : null;
+
+const migrationPlugins = [jazzPlugin(), songSharePlugin];
 
 async function addUserToResendSegment(email: string | null | undefined) {
   if (!email || !resend || !resendSegmentId) return;
@@ -39,6 +43,7 @@ async function ensureMigrations(dialect: PostgresDialect) {
   if (migrationsPromise) return migrationsPromise;
   const { runMigrations } = await getMigrations({
     database: { dialect, type: "postgres" },
+    plugins: migrationPlugins,
   });
   migrationsPromise = runMigrations();
   return migrationsPromise;
@@ -61,23 +66,44 @@ async function ensureJazzColumns(pool: Pool) {
   return schemaPatchPromise;
 }
 
+let postgresPool: Pool | null = null;
+function initPostgresPool(): Pool | null {
+  if (!databaseUrl || !databaseUrl.startsWith("postgres")) return null;
+
+  if (!postgresPool) {
+    postgresPool = new Pool({
+      connectionString: databaseUrl,
+      max: 5,
+    });
+  }
+
+  return postgresPool;
+}
+
+// Song sharing is only supported when Better Auth is configured with Postgres.
+export function getPostgresPool(): Pool {
+  if (!postgresPool) {
+    throw new Error(
+      "Postgres database is not configured. Song sharing requires a Postgres DATABASE_URL to be set.",
+    );
+  }
+  return postgresPool;
+}
+
 // Track if database is ready for use
 let dbReadyPromise: Promise<void> | null = null;
 
 function getDatabaseConfig() {
   // Prefer Postgres when a DATABASE_URL is provided
-  if (databaseUrl && databaseUrl.startsWith("postgres")) {
-    const pool = new Pool({
-      connectionString: databaseUrl,
-      max: 5,
-    });
+  const pool = initPostgresPool();
+  if (pool) {
     const dialect = new PostgresDialect({ pool });
 
     // Run Better Auth migrations once (creates user/session tables)
     // Store the promise so we can await it if needed before auth operations
-    dbReadyPromise = ensureMigrations(dialect).then(() =>
-      ensureJazzColumns(pool),
-    );
+    dbReadyPromise = ensureMigrations(dialect).then(async () => {
+      await ensureJazzColumns(pool);
+    });
 
     return {
       dialect,
