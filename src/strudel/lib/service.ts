@@ -23,11 +23,12 @@ import {
   StrudelMirrorOptions,
   StrudelReplState,
 } from "@strudel/codemirror";
-import { getDrawContext, setTheme } from "@strudel/draw";
+import { getDrawContext } from "@strudel/draw";
 import type {
   StrudelStorageAdapter,
   ReplSummary,
 } from "@/hooks/use-strudel-storage";
+import { DEFAULT_KEYBINDINGS, getKeybindings } from "@/lib/editor-preferences";
 
 type LoadingCallback = (status: string, progress: number) => void;
 type CodeChangeCallback = (state: StrudelReplState) => void;
@@ -38,6 +39,8 @@ const DEFAULT_CODE = `// Welcome to StrudelLM!
 // Example: A simple drum pattern
 s("bd sd bd sd")
 `;
+
+const ALLOWED_KEYBINDINGS = ["codemirror", "vim", "emacs", "vscode"] as const;
 
 export class StrudelService {
   private static _instance: StrudelService | null = null;
@@ -64,6 +67,7 @@ export class StrudelService {
   private currentThreadId: string | null = null;
   private currentReplId: string | null = null;
   private isInitializing = false;
+  private isRestartingEditor = false;
 
   // Storage adapter (can be swapped for Jazz or localStorage)
   private storageAdapter: StrudelStorageAdapter | null = null;
@@ -469,33 +473,69 @@ export class StrudelService {
     }
   }
 
-  fixTheme(): void {
-    const themeSettings = {
-      background: "var(--card-background)",
-      foreground: "var(--card-foreground)",
-      caret: "var(--muted-foreground)",
-      selection: "color-mix(in oklch, var(--primary) 20%, transparent)",
-      selectionMatch: "color-mix(in oklch, var(--primary) 20%, transparent)",
-      lineHighlight: "color-mix(in oklch, var(--primary) 20%, transparent)",
-      lineBackground:
-        "color-mix(in oklch, var(--card-foreground) 20%, transparent)",
-      gutterBackground: "transparent",
-      gutterForeground: "var(--muted-foreground)",
-    };
-    const styleID = "strudel-theme-vars";
-    let styleEl = document.getElementById(styleID) as HTMLStyleElement | null;
-    if (!styleEl) {
-      styleEl = document.createElement("style");
-      styleEl.id = styleID;
-      document.head.appendChild(styleEl);
+  // Editor runtime restart (for keybindings)
+
+  /**
+   * Restart the editor runtime.
+   * Used when changing keybindings which require recreating the editor.
+   */
+  async applyKeybindingsAndRestart(): Promise<void> {
+    if (typeof window === "undefined") return;
+
+    const container = this.containerElement;
+    if (!container) return;
+    if (this.isRestartingEditor || this.isInitializing) return;
+
+    this.isRestartingEditor = true;
+
+    // Get current state
+    const wasPlaying = this.isPlaying;
+    const stateBeforeRestart = { ...this._state };
+    const currentCode = this.getCode();
+    this._state = { ...this._state, code: currentCode };
+
+    let didAttach = false;
+    try {
+      // Stop playback
+      if (wasPlaying) {
+        this.stop();
+      }
+
+      // Detach current editor
+      this.detach();
+
+      await this.attach(container);
+      didAttach = true;
+
+      // Restart playback if it was playing
+      if (wasPlaying) {
+        await this.play();
+      }
+    } catch (error) {
+      if (!didAttach) {
+        this.detach();
+
+        try {
+          this._state = { ...stateBeforeRestart, code: currentCode };
+          await this.attach(container);
+          if (wasPlaying) {
+            await this.play();
+          }
+        } catch (restoreError) {
+          console.error(
+            "Failed to restore editor after restart failure:",
+            restoreError,
+          );
+        }
+      }
+      console.error(
+        "Failed to reattach editor after keybindings change:",
+        error,
+      );
+      throw error;
+    } finally {
+      this.isRestartingEditor = false;
     }
-    styleEl.innerHTML = `:root .cm-editor {
-      ${Object.entries(themeSettings)
-        // important to override fallback
-        .map(([key, value]) => `--${key}: ${value};`)
-        .join("\n")}
-    }`;
-    setTheme(themeSettings);
   }
 
   prebake = async (): Promise<void> => {
@@ -613,6 +653,17 @@ export class StrudelService {
         prebake: this.prebake,
       });
 
+      const keybindings = getKeybindings();
+      const resolvedKeybindings =
+        keybindings &&
+        (ALLOWED_KEYBINDINGS as readonly string[]).includes(keybindings)
+          ? keybindings
+          : DEFAULT_KEYBINDINGS;
+
+      if (typeof this.editorInstance.changeSetting === "function") {
+        this.editorInstance.changeSetting("keybindings", resolvedKeybindings);
+      }
+
       await this.prebake();
 
       if (oldEditor) {
@@ -630,8 +681,6 @@ export class StrudelService {
           this.setCode(savedCode);
         }
       }
-
-      this.fixTheme();
     } finally {
       this.isInitializing = false;
     }

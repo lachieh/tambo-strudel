@@ -106,6 +106,18 @@ declare module "@strudel/draw" {
 declare module "@strudel/codemirror" {
   import { ViewUpdate, EditorView } from "@codemirror/view";
 
+  /** Initialize the theme system */
+  export function initTheme(theme: string): void;
+
+  /** Activate a theme by name */
+  export function activateTheme(name: string): void;
+
+  /** Available themes */
+  export const themes: Record<string, unknown>;
+
+  /** Theme settings */
+  export const settings: Record<string, unknown>;
+
   interface StrudelReplState {
     activeCode: string;
     code: string;
@@ -204,6 +216,9 @@ declare module "@strudel/codemirror" {
     setBracketClosingEnabled(enabled: boolean): void;
     /** Enable/disable autocompletion */
     setAutocompletionEnabled(enabled: boolean): void;
+
+    /** Change a single editor setting (e.g. keybindings) */
+    changeSetting(key: string, value: unknown): void;
   }
 
   export function initEditor(options: StrudelMirrorOptions): StrudelMirror;
