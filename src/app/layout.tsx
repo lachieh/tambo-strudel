@@ -1,4 +1,5 @@
 import { Geist, Geist_Mono, Fira_Code, JetBrains_Mono } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -21,16 +22,22 @@ const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
 });
 
-const themeBootstrapScript = `(function () {
+const THEME_STORAGE_KEY = "strudel-editor-theme";
+
+function getThemeBootstrapScript(): string {
+  return `(() => {
   try {
-    var theme = localStorage.getItem("strudel-editor-theme");
-    if (theme) {
+    var theme = localStorage.getItem(${JSON.stringify(THEME_STORAGE_KEY)});
+
+    // Guard against corrupted values.
+    if (theme && /^[a-z0-9-]+$/.test(theme)) {
       document.documentElement.dataset.theme = theme;
     }
   } catch (e) {
     // Ignore storage access errors (e.g. blocked in some privacy modes)
   }
 })();`;
+}
 
 export default function RootLayout({
   children,
@@ -40,7 +47,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeBootstrapScript }} />
+        <Script id="theme-bootstrap" strategy="beforeInteractive">
+          {getThemeBootstrapScript()}
+        </Script>
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${firaCode.variable} ${jetbrainsMono.variable} antialiased`}
