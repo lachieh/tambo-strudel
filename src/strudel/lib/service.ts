@@ -109,8 +109,12 @@ export class StrudelService {
 
   private constructor() {}
 
+  private static isValidCps(value: unknown): value is number {
+    return typeof value === "number" && Number.isFinite(value) && value > 0;
+  }
+
   private static normalizeCps(value: unknown): number {
-    return typeof value === "number" && Number.isFinite(value) ? value : 0.5;
+    return StrudelService.isValidCps(value) ? value : 0.5;
   }
 
   /**
@@ -1029,6 +1033,20 @@ const keybindings = getKeybindings();
 
     const activeContext = getAudioContext();
     try {
+      const coerceNumber = (value: unknown): number | null => {
+        if (typeof value === "number" && Number.isFinite(value)) return value;
+        if (
+          value &&
+          typeof value === "object" &&
+          "valueOf" in value &&
+          typeof (value as { valueOf: () => unknown }).valueOf === "function"
+        ) {
+          const coerced = Number((value as { valueOf: () => unknown }).valueOf());
+          return Number.isFinite(coerced) ? coerced : null;
+        }
+        return null;
+      };
+
       const repl = webaudioRepl({
         getTime: () => 0,
         transpiler,
@@ -1043,7 +1061,10 @@ const keybindings = getKeybindings();
         throw new Error(typeof error === "string" ? error : "Evaluation failed");
       }
 
-      const cpsValue = StrudelService.normalizeCps(repl.scheduler?.cps);
+      const replCps = repl.scheduler?.cps;
+      const cpsValue = StrudelService.normalizeCps(
+        StrudelService.isValidCps(replCps) ? replCps : this.cps,
+      );
 
       const seconds = cycles / Math.max(cpsValue, 1e-3);
       const numFrames = Math.ceil(seconds * activeContext.sampleRate);
@@ -1055,24 +1076,32 @@ const keybindings = getKeybindings();
 
       setDefaultAudioContext(offlineContext);
 
-      const haps = (pattern as {
-        queryArc: (begin: number, end: number, context: unknown) => unknown[];
-      }).queryArc(0, cycles, { _cps: cpsValue, cyclist: "export" });
+      const queryArc = (pattern as {
+        queryArc?: (begin: number, end: number, context: unknown) => unknown[];
+      }).queryArc;
+      if (typeof queryArc !== "function") {
+        throw new Error(
+          "Export failed: pattern does not support offline rendering (missing queryArc)",
+        );
+      }
+
+      const haps = queryArc(0, cycles, { _cps: cpsValue, cyclist: "export" });
 
       const offlineWebaudioOutput: WebaudioOutputFn =
         webaudioOutput as unknown as WebaudioOutputFn;
 
       for (const hap of haps) {
-        const hasOnset = (hap as { hasOnset?: () => boolean }).hasOnset?.();
-        if (!hasOnset) continue;
+        const hasOnsetFn = (hap as { hasOnset?: () => boolean }).hasOnset;
+        if (typeof hasOnsetFn !== "function" || !hasOnsetFn()) continue;
 
-        const wholeBegin = (hap as { whole?: { begin?: number } }).whole?.begin;
-        if (typeof wholeBegin !== "number") continue;
+        const wholeBegin = (hap as { whole?: { begin?: unknown } }).whole?.begin;
+        const wholeBeginValue = coerceNumber(wholeBegin);
+        if (wholeBeginValue === null) continue;
 
-        const durationCycles = (hap as { duration?: number }).duration;
-        const durationSeconds =
-          typeof durationCycles === "number" ? durationCycles / cpsValue : 0;
-        const targetTime = wholeBegin / cpsValue;
+        const durationCycles = (hap as { duration?: unknown }).duration;
+        const durationCyclesValue = coerceNumber(durationCycles) ?? 0;
+        const durationSeconds = durationCyclesValue / cpsValue;
+        const targetTime = wholeBeginValue / cpsValue;
 
         await offlineWebaudioOutput(hap, 0, durationSeconds, cpsValue, targetTime);
       }
