@@ -113,12 +113,45 @@ export class StrudelService {
   // Storage adapter (can be swapped for Jazz or localStorage)
   private storageAdapter: StrudelStorageAdapter | null = null;
 
+  private exportGuardedEditors = new WeakSet<object>();
+
   private constructor() {}
 
   private ensureNotExporting(action: string): void {
     if (this.isExporting) {
       throw new Error(`${action} is disabled during export`);
     }
+  }
+
+  private installEditorExportGuards(editor: StrudelMirror): void {
+    if (this.exportGuardedEditors.has(editor)) return;
+    this.exportGuardedEditors.add(editor);
+
+    const originalEvaluate = editor.evaluate.bind(editor);
+    editor.evaluate = async () => {
+      if (this.isExporting) {
+        this.restartPlaybackAfterExport = true;
+        return;
+      }
+      await originalEvaluate();
+    };
+
+    const originalToggle = editor.toggle.bind(editor);
+    editor.toggle = async () => {
+      if (this.isExporting) {
+        return;
+      }
+      await originalToggle();
+    };
+
+    const originalStop = editor.stop.bind(editor);
+    editor.stop = async () => {
+      if (this.isExporting) {
+        this.restartPlaybackAfterExport = false;
+        return;
+      }
+      await originalStop();
+    };
   }
 
   private static isValidCps(value: unknown): value is number {
@@ -1050,32 +1083,7 @@ export class StrudelService {
       if (typeof this.editorInstance.changeSetting === "function") {
         this.editorInstance.changeSetting("keybindings", resolvedKeybindings);
       }
-
-      const originalEvaluate = this.editorInstance.evaluate.bind(this.editorInstance);
-      this.editorInstance.evaluate = async () => {
-        if (this.isExporting) {
-          this.restartPlaybackAfterExport = true;
-          return;
-        }
-        await originalEvaluate();
-      };
-
-      const originalToggle = this.editorInstance.toggle.bind(this.editorInstance);
-      this.editorInstance.toggle = async () => {
-        if (this.isExporting) {
-          return;
-        }
-        await originalToggle();
-      };
-
-      const originalStop = this.editorInstance.stop.bind(this.editorInstance);
-      this.editorInstance.stop = async () => {
-        if (this.isExporting) {
-          this.restartPlaybackAfterExport = false;
-          return;
-        }
-        await originalStop();
-      };
+      this.installEditorExportGuards(this.editorInstance);
 
       await this.prebake();
 
@@ -1243,7 +1251,13 @@ export class StrudelService {
   };
 
   evaluate = async (code: string, play: boolean = false): Promise<void> => {
-    this.ensureNotExporting("Evaluation");
+    if (this.isExporting) {
+      if (play) {
+        this.restartPlaybackAfterExport = true;
+        return;
+      }
+      throw new Error("Evaluation is disabled during export");
+    }
     const result = await this.editorInstance?.repl.evaluate(code, play);
     if (!result) {
       throw new Error(
