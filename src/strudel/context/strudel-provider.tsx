@@ -9,6 +9,9 @@ import * as React from "react";
 type StrudelContextValue = {
   code: string;
   error: string | Error | null;
+  missingSample: string | null;
+  revertNotification: string | null;
+  clearRevertNotification: () => void;
   setCode: (code: string, shouldPlay?: boolean) => void;
   setThreadId: (threadId: string | null) => void;
   setReplId: (replId: string) => void;
@@ -47,7 +50,14 @@ export function StrudelProvider({ children }: { children: React.ReactNode }) {
     },
   );
   const [isAiUpdating, setIsAiUpdating] = React.useState(false);
+  const isAiUpdatingRef = React.useRef(isAiUpdating);
+  React.useEffect(() => {
+    isAiUpdatingRef.current = isAiUpdating;
+  }, [isAiUpdating]);
   const [allRepls, setAllRepls] = React.useState<ReplSummary[]>([]);
+  const [revertNotification, setRevertNotification] = React.useState<
+    string | null
+  >(null);
   const [currentReplId, setCurrentReplId] = React.useState<string | null>(() =>
     strudelService.getCurrentReplId(),
   );
@@ -65,9 +75,43 @@ export function StrudelProvider({ children }: { children: React.ReactNode }) {
     );
 
     const replUnsubscribe = strudelService.onStateChange((newState) => {
-      setReplState((state) => {
-        return { ...state, ...newState };
+      setReplState((prevState) => {
+        // Preserve existing errors if the new state omits them
+        const evalError =
+          newState.evalError !== undefined
+            ? newState.evalError
+            : prevState?.evalError;
+        const schedulerError =
+          newState.schedulerError !== undefined
+            ? newState.schedulerError
+            : prevState?.schedulerError;
+        const missingSample =
+          newState.missingSample !== undefined
+            ? newState.missingSample
+            : prevState?.missingSample ?? null;
+
+        // Check if a new error appeared while playing (user-caused error, not AI)
+        // Only stop if: was playing, no previous error, now has error, not AI updating
+        const wasPlaying = prevState?.started === true;
+        const hadNoError = !prevState?.evalError && !prevState?.schedulerError;
+        const hasError = !!(evalError || schedulerError);
+        const isUserError = !isAiUpdatingRef.current;
+
+        if (wasPlaying && hadNoError && hasError && isUserError) {
+          // User caused an error while playing - stop playback
+          strudelService.stop();
+        }
+
+        return {
+          ...prevState,
+          ...newState,
+          evalError,
+          schedulerError,
+          missingSample,
+        };
       });
+      // Sync revert notification from service
+      setRevertNotification(strudelService.revertNotification);
     });
 
     if (!strudelService.isReady) {
@@ -145,6 +189,11 @@ export function StrudelProvider({ children }: { children: React.ReactNode }) {
     setAllRepls(repls);
   }, []);
 
+  const clearRevertNotification = React.useCallback(() => {
+    strudelService.clearRevertNotification();
+    setRevertNotification(null);
+  }, []);
+
   const providerValue: StrudelContextValue = React.useMemo(() => {
     const {
       started: isPlaying,
@@ -152,12 +201,16 @@ export function StrudelProvider({ children }: { children: React.ReactNode }) {
       activeCode,
       evalError,
       schedulerError,
+      missingSample,
     } = replState || { started: false, code: "", activeCode: "" };
     // Has unevaluated changes if playing and current code differs from what's being played
     const hasUnevaluatedChanges = isPlaying && code !== activeCode;
     return {
       code,
       error: evalError || schedulerError || null,
+      missingSample: missingSample ?? null,
+      revertNotification,
+      clearRevertNotification,
       isPlaying,
       hasUnevaluatedChanges,
       setCode,
@@ -171,7 +224,15 @@ export function StrudelProvider({ children }: { children: React.ReactNode }) {
       allRepls,
       getAllRepls,
       deleteRepl,
-      play: async () => await strudelService.play(),
+      play: async () => {
+        try {
+          await strudelService.play();
+        } catch (error) {
+          // Error is already captured by the service's error handling
+          // This catch prevents unhandled rejection warnings
+          console.warn("[StrudelProvider] Play error caught:", error);
+        }
+      },
       stop: strudelService.stop,
       reset: strudelService.reset,
       clearError: strudelService.clearError,
@@ -196,6 +257,8 @@ export function StrudelProvider({ children }: { children: React.ReactNode }) {
     deleteRepl,
     replState,
     isAiUpdating,
+    revertNotification,
+    clearRevertNotification,
   ]);
 
   return (
