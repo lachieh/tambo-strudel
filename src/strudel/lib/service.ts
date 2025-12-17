@@ -17,7 +17,6 @@ import {
   registerSynthSounds,
   setDefaultAudioContext,
   webaudioOutput,
-  webaudioRepl,
 } from "@strudel/webaudio";
 import { prebake } from "@/strudel/lib/prebake";
 import { audioBufferToWavBlob } from "@/strudel/lib/wav";
@@ -135,17 +134,6 @@ export class StrudelService {
     return null;
   }
 
-  private static getExportCps(replCps: unknown, fallbackCps: number): number {
-    const cps = StrudelService.isValidCps(replCps)
-      ? replCps
-      : StrudelService.normalizeCps(fallbackCps);
-
-    if (!StrudelService.isValidCps(cps)) {
-      throw new Error("Export failed: CPS must be greater than zero");
-    }
-
-    return cps;
-  }
 
   private static async withDefaultAudioContext<T>(
     ctx: BaseAudioContext,
@@ -168,29 +156,6 @@ export class StrudelService {
       setDefaultAudioContext(restoreTo);
       StrudelService.isDefaultAudioContextSwapInProgress = false;
     }
-  }
-
-  private static async evaluateExportPattern(
-    code: string,
-    fallbackCps: number,
-  ): Promise<{ pattern: unknown; cps: number }> {
-    const repl = webaudioRepl({
-      getTime: () => 0,
-      transpiler,
-    });
-
-    const pattern = await repl.evaluate(code, false);
-    if (!pattern) {
-      const error = repl.state?.evalError;
-      if (error instanceof Error) {
-        throw error;
-      }
-      throw new Error(typeof error === "string" ? error : "Evaluation failed");
-    }
-
-    const replCps = StrudelService.coerceNumber(repl.scheduler?.cps);
-    const cps = StrudelService.getExportCps(replCps, fallbackCps);
-    return { pattern, cps };
   }
 
   private static async renderPatternToOfflineAudioBuffer({
@@ -1177,10 +1142,16 @@ const keybindings = getKeybindings();
 
     const activeContext = getAudioContext();
     try {
-      const { pattern, cps } = await StrudelService.evaluateExportPattern(
-        code,
-        this.cps,
-      );
+      const pattern = await this.editorInstance?.repl.evaluate(code, false);
+      if (!pattern) {
+        const error = this.editorInstance?.repl.state.evalError;
+        if (error instanceof Error) {
+          throw error;
+        }
+        throw new Error(typeof error === "string" ? error : "Evaluation failed");
+      }
+
+      const cps = this.cps;
 
       const renderedBuffer = await StrudelService.renderPatternToOfflineAudioBuffer(
         {

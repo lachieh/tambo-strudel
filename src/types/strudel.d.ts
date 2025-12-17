@@ -40,24 +40,6 @@ declare module "@strudel/webaudio" {
   /** Register built-in synth sounds */
   export function registerSynthSounds(): Promise<void>;
 
-  /** Create a webaudio-backed repl instance */
-  export interface WebaudioReplScheduler {
-    started?: boolean;
-    cps?: number;
-  }
-
-  export interface WebaudioReplInstance {
-    evaluate: (
-      code: string,
-      autoplay?: boolean,
-      shouldHush?: boolean,
-    ) => Promise<unknown>;
-    state?: { evalError?: unknown };
-    scheduler?: WebaudioReplScheduler;
-  }
-
-  export function webaudioRepl(options?: unknown): WebaudioReplInstance;
-
   /** Alias a bank of samples from a URL */
   export function aliasBank(url: string): Promise<void>;
 
