@@ -2,7 +2,6 @@
 
 import { cn } from "@/lib/utils";
 import { useStrudel } from "@/strudel/context/strudel-provider";
-import { useTamboComponentState } from "@tambo-ai/react";
 import * as React from "react";
 import { z } from "zod/v3";
 
@@ -20,17 +19,6 @@ export function VisualizationToggle({
 }: VisualizationToggleProps) {
   const { visualizationsEnabled, setVisualizationsEnabled } = useStrudel();
 
-  const [enabled, setEnabled] = useTamboComponentState<boolean>(
-    "visualizationsEnabled",
-    visualizationsEnabled,
-  );
-
-  React.useEffect(() => {
-    if (enabled !== visualizationsEnabled) {
-      setEnabled(visualizationsEnabled);
-    }
-  }, [enabled, visualizationsEnabled, setEnabled]);
-
   return (
     <div
       className="w-full rounded-lg border border-border bg-card p-4 space-y-3"
@@ -42,13 +30,12 @@ export function VisualizationToggle({
         <button
           type="button"
           onClick={() => {
-            setEnabled(true);
             setVisualizationsEnabled(true);
           }}
           className={cn(
             "px-3 py-1.5 rounded-md text-sm border transition-all",
             "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1",
-            enabled
+            visualizationsEnabled
               ? "bg-primary text-primary-foreground border-primary"
               : "bg-muted text-muted-foreground border-border hover:bg-muted/80 hover:text-foreground",
           )}
@@ -59,13 +46,12 @@ export function VisualizationToggle({
         <button
           type="button"
           onClick={() => {
-            setEnabled(false);
             setVisualizationsEnabled(false);
           }}
           className={cn(
             "px-3 py-1.5 rounded-md text-sm border transition-all",
             "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1",
-            !enabled
+            !visualizationsEnabled
               ? "bg-primary text-primary-foreground border-primary"
               : "bg-muted text-muted-foreground border-border hover:bg-muted/80 hover:text-foreground",
           )}
