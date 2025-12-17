@@ -87,12 +87,17 @@ function stripVisualizationsFromCode(
 function findNearestNonEmptyLineIndex(
   lines: string[],
   preferredIndex: number,
+  maxDistance: number = 8,
 ): number | null {
   if (preferredIndex < 0 || preferredIndex >= lines.length) return null;
   if (lines[preferredIndex]?.trim()) return preferredIndex;
 
-  for (let i = preferredIndex - 1; i >= 0; i--) {
-    if (lines[i]?.trim()) return i;
+  for (let distance = 1; distance <= maxDistance; distance++) {
+    const above = preferredIndex - distance;
+    if (above >= 0 && lines[above]?.trim()) return above;
+
+    const below = preferredIndex + distance;
+    if (below < lines.length && lines[below]?.trim()) return below;
   }
 
   return null;
@@ -103,11 +108,8 @@ function setVisualization(
   next: VisualizationOrOff,
   cursorLineIndex: number | null,
 ): string {
-  const preferredLineIndex = cursorLineIndex ?? 0;
-  const { strippedCode } = stripVisualizationsFromCode(code);
-
   if (!next) {
-    return strippedCode;
+    return stripVisualizationsFromCode(code).strippedCode;
   }
 
   const nextOption = VISUALIZATION_OPTIONS.find((o) => o.id === next);
@@ -115,19 +117,29 @@ function setVisualization(
     return code;
   }
 
-  const lines = strippedCode.split("\n");
+  const originalLines = code.split("\n");
+  const linesForTargeting = originalLines.map((line) => {
+    return stripTrailingVisualizationFromLine(line).strippedLine;
+  });
 
-  const clampedPreferredIndex = Math.min(
-    Math.max(preferredLineIndex, 0),
-    Math.max(lines.length - 1, 0),
+  const preferredLineIndex = Math.min(
+    Math.max(cursorLineIndex ?? 0, 0),
+    Math.max(linesForTargeting.length - 1, 0),
   );
   const targetIndex = findNearestNonEmptyLineIndex(
-    lines,
-    clampedPreferredIndex,
+    linesForTargeting,
+    preferredLineIndex,
   );
 
   if (targetIndex === null) {
-    return strippedCode;
+    return code;
+  }
+
+  const { strippedCode } = stripVisualizationsFromCode(code);
+  const lines = strippedCode.split("\n");
+
+  if (targetIndex < 0 || targetIndex >= lines.length) {
+    return code;
   }
 
   const originalLine = lines[targetIndex] ?? "";

@@ -501,8 +501,10 @@ export class StrudelService {
   getCursorLineIndex(): number | null {
     if (!this.editorInstance) return null;
 
+    const cursorLocation = this.getCursorLocation();
+    if (cursorLocation === null) return null;
+
     const editorInstance = this.editorInstance as unknown as {
-      getCursorLocation?: () => number;
       editor?: {
         state?: {
           doc?: {
@@ -511,11 +513,6 @@ export class StrudelService {
         };
       };
     };
-
-    if (typeof editorInstance.getCursorLocation !== "function") return null;
-    const cursorLocation = editorInstance.getCursorLocation.call(
-      this.editorInstance,
-    );
 
     const lineAt = editorInstance.editor?.state?.doc?.lineAt;
     if (typeof lineAt !== "function") return null;
