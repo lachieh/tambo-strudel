@@ -15,9 +15,12 @@ import {
   getAudioContext,
   initAudioOnFirstClick,
   registerSynthSounds,
+  setDefaultAudioContext,
   webaudioOutput,
+  webaudioRepl,
 } from "@strudel/webaudio";
 import { prebake } from "@/strudel/lib/prebake";
+import { audioBufferToWavBlob } from "@/strudel/lib/wav";
 import {
   StrudelMirror,
   StrudelMirrorOptions,
@@ -178,6 +181,15 @@ export class StrudelService {
   clearRevertNotification = (): void => {
     this.notifyStateChange({ revertNotification: null });
   };
+
+  /**
+   * Get the current cycles-per-second rate.
+   */
+  get cps(): number {
+    const value = (this.editorInstance?.repl.scheduler as { cps?: number } | null)
+      ?.cps;
+    return typeof value === "number" && Number.isFinite(value) ? value : 0.5;
+  }
 
   // ============================================
   // Code Persistence (REPL/Thread Model)
@@ -987,6 +999,86 @@ const keybindings = getKeybindings();
     this.pendingSchedulerWaitCancel?.();
     this.unregisterGlobalErrorHandlers();
     this.removeConsoleErrorFilter();
+  };
+
+  exportWav = async (cycles: number): Promise<Blob> => {
+    if (!this.isReady) {
+      throw new Error("Strudel is still loading");
+    }
+    if (!Number.isFinite(cycles) || cycles <= 0) {
+      throw new Error("Cycles must be a positive number");
+    }
+
+    const code = this.getCode();
+    const wasPlaying = this.isPlaying;
+    if (wasPlaying) {
+      this.stop();
+    }
+
+    const activeContext = getAudioContext();
+    try {
+      const repl = webaudioRepl({
+        getTime: () => 0,
+        transpiler,
+      });
+
+      const pattern = await repl.evaluate(code, false);
+      if (!pattern) {
+        const error = repl.state?.evalError;
+        if (error instanceof Error) {
+          throw error;
+        }
+        throw new Error(typeof error === "string" ? error : "Evaluation failed");
+      }
+
+      const cpsValue =
+        typeof repl.scheduler?.cps === "number" && Number.isFinite(repl.scheduler.cps)
+          ? repl.scheduler.cps
+          : 0.5;
+
+      const seconds = cycles / Math.max(cpsValue, 1e-3);
+      const numFrames = Math.ceil(seconds * activeContext.sampleRate);
+      const offlineContext = new OfflineAudioContext(
+        2,
+        numFrames,
+        activeContext.sampleRate,
+      );
+
+      setDefaultAudioContext(offlineContext);
+
+      const haps = (pattern as {
+        queryArc: (begin: number, end: number, context: unknown) => unknown[];
+      }).queryArc(0, cycles, { _cps: cpsValue, cyclist: "export" });
+
+      for (const hap of haps) {
+        const hasOnset = (hap as { hasOnset?: () => boolean }).hasOnset?.();
+        if (!hasOnset) continue;
+
+        const wholeBegin = (hap as { whole?: { begin?: number } }).whole?.begin;
+        if (typeof wholeBegin !== "number") continue;
+
+        const durationCycles = (hap as { duration?: number }).duration;
+        const durationSeconds =
+          typeof durationCycles === "number" ? durationCycles / cpsValue : 0;
+        const targetTime = wholeBegin / cpsValue;
+
+        (webaudioOutput as unknown as (
+          hap: unknown,
+          deadline: number,
+          duration: number,
+          cps: number,
+          targetTime: number,
+        ) => unknown)(hap, 0, durationSeconds, cpsValue, targetTime);
+      }
+
+      const renderedBuffer = await offlineContext.startRendering();
+      return audioBufferToWavBlob(renderedBuffer);
+    } finally {
+      setDefaultAudioContext(activeContext);
+      if (wasPlaying) {
+        await this.play();
+      }
+    }
   };
 
   evaluate = async (code: string, play: boolean = false): Promise<void> => {

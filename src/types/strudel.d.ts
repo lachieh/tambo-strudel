@@ -20,16 +20,29 @@ declare module "@strudel/repl" {
 
 declare module "@strudel/webaudio" {
   /** Default audio output function */
-  export function webaudioOutput(hap: unknown): void;
+  export function webaudioOutput(
+    hap: unknown,
+    deadline?: number,
+    duration?: number,
+    cps?: number,
+    targetTime?: number,
+  ): void | Promise<void>;
 
   /** Get the current audio context */
   export function getAudioContext(): AudioContext;
+
+  /** Set the default audio context used for playback/output */
+  export function setDefaultAudioContext(ctx: BaseAudioContext): void;
 
   /** Initialize audio on first user click (required for browsers) */
   export function initAudioOnFirstClick(): void;
 
   /** Register built-in synth sounds */
   export function registerSynthSounds(): Promise<void>;
+
+  /** Create a webaudio-backed repl instance */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  export function webaudioRepl(options?: any): any;
 
   /** Alias a bank of samples from a URL */
   export function aliasBank(url: string): Promise<void>;
@@ -188,6 +201,7 @@ declare module "@strudel/codemirror" {
       state: StrudelReplState;
       scheduler: {
         started: boolean;
+        cps?: number;
       };
       start: () => void;
       pause: () => void;
