@@ -166,6 +166,10 @@ export class StrudelService {
     cps: number;
     sampleRate: number;
   }): Promise<AudioBuffer> {
+    if (!StrudelService.isValidCps(cps)) {
+      throw new Error("Export failed: CPS must be greater than zero");
+    }
+
     const seconds = cycles / cps;
     if (!Number.isFinite(seconds) || seconds <= 0) {
       throw new Error(
@@ -175,14 +179,14 @@ export class StrudelService {
 
     const numFrames = Math.ceil(seconds * sampleRate);
 
-    const maxFrames = Math.min(
-      MAX_EXPORT_FRAMES,
-      Math.ceil(MAX_EXPORT_SECONDS * sampleRate),
-    );
+    // Constrain by both an absolute frame cap and a human-friendly time cap to
+    // avoid creating excessively large OfflineAudioContexts.
+    const maxFramesByTime = Math.ceil(MAX_EXPORT_SECONDS * sampleRate);
+    const maxFrames = Math.min(MAX_EXPORT_FRAMES, maxFramesByTime);
     if (numFrames > maxFrames) {
       const maxSeconds = Math.floor(maxFrames / sampleRate);
       throw new Error(
-        `Export too long (${Math.round(seconds)}s). Max is ${maxSeconds}s. Reduce cycles or increase CPS to shorten the duration.`,
+        `Export too long (${Math.round(seconds)}s). Max is about ${maxSeconds}s. Reduce cycles or increase CPS to shorten the duration.`,
       );
     }
 

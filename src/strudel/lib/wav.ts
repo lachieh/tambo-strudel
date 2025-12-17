@@ -6,6 +6,10 @@ function writeAscii(view: DataView, offset: number, value: string): number {
 }
 
 export function audioBufferToWavBlob(audioBuffer: AudioBuffer): Blob {
+  if (typeof window === "undefined") {
+    throw new Error("Cannot export WAV: must run in a browser");
+  }
+
   const numChannels = audioBuffer.numberOfChannels;
   const sampleRate = audioBuffer.sampleRate;
   const numFrames = audioBuffer.length;
