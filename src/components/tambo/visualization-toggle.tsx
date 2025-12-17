@@ -5,18 +5,20 @@ import { useStrudel } from "@/strudel/context/strudel-provider";
 import * as React from "react";
 import { z } from "zod/v3";
 
-export const visualizationToggleSchema = z.object({
+export const visualizationVisibilityToggleSchema = z.object({
   title: z
     .string()
     .optional()
     .describe("Optional title shown above the visualization visibility toggle"),
 });
 
-export type VisualizationToggleProps = z.infer<typeof visualizationToggleSchema>;
+export type VisualizationVisibilityToggleProps = z.infer<
+  typeof visualizationVisibilityToggleSchema
+>;
 
 export function VisualizationVisibilityToggle({
   title = "Visualization visibility",
-}: VisualizationToggleProps) {
+}: VisualizationVisibilityToggleProps) {
   const { visualizationsEnabled, setVisualizationsEnabled } = useStrudel();
 
   return (
@@ -62,8 +64,9 @@ export function VisualizationVisibilityToggle({
 
       <div className="text-xs text-muted-foreground">
         This toggle only shows/hides visualization widgets in the editor. Add or
-        remove visualizations in your Strudel code (e.g. `._pianoroll()`,
-        `._waveform()`, `._spectrum()`) or ask the AI to do it for you.
+        remove visualizations in your Strudel code (e.g. <code>._pianoroll()</code>,
+        <code>._waveform()</code>, <code>._spectrum()</code>) or ask the AI to do it
+        for you.
       </div>
     </div>
   );

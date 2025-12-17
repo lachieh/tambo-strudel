@@ -10,7 +10,7 @@ Strudel supports visualization widgets that can be appended to the end of any pa
 - `._waveform()` - Audio waveform (time domain)
 - `._spectrum()` - Frequency spectrum (great for filters / timbre)
 
-Suggest these when appropriate (e.g. "want to see the pattern? I can add a piano roll"), and add them directly when the user asks. The `VisualizationVisibilityToggle` UI component should only show/hide visualizations; it should not be used to add/remove visualization calls.
+Suggest these when appropriate (e.g. "want to see the pattern? I can add a piano roll"), and add them directly when the user asks. The visualization visibility toggle UI should only show/hide visualizations; it should not be used to add/remove visualization calls.
 
 ## Sound Discovery
 
