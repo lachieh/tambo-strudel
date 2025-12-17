@@ -301,36 +301,36 @@ export const Graph = React.forwardRef<HTMLDivElement, GraphProps>(
               <RechartsCore.CartesianGrid
                 strokeDasharray="3 3"
                 vertical={false}
-                stroke="var(--border)"
+                stroke="var(--color-border)"
               />
               <RechartsCore.XAxis
                 dataKey="name"
-                stroke="var(--muted-foreground)"
+                stroke="var(--color-muted-foreground)"
                 axisLine={false}
                 tickLine={false}
               />
               <RechartsCore.YAxis
-                stroke="var(--muted-foreground)"
+                stroke="var(--color-muted-foreground)"
                 axisLine={false}
                 tickLine={false}
               />
               <RechartsCore.Tooltip
                 cursor={{
-                  fill: "var(--muted-foreground)",
+                  fill: "var(--color-muted-foreground)",
                   fillOpacity: 0.1,
                   radius: 4,
                 }}
                 contentStyle={{
-                  backgroundColor: "var(--popover)",
-                  border: "1px solid var(--border)",
+                  backgroundColor: "var(--color-popover)",
+                  border: "1px solid var(--color-border)",
                   borderRadius: "var(--radius)",
-                  color: "var(--popover-foreground)",
+                  color: "var(--color-popover-foreground)",
                 }}
               />
               {showLegend && (
                 <RechartsCore.Legend
                   wrapperStyle={{
-                    color: "var(--foreground)",
+                    color: "var(--color-foreground)",
                   }}
                 />
               )}
@@ -353,36 +353,36 @@ export const Graph = React.forwardRef<HTMLDivElement, GraphProps>(
               <RechartsCore.CartesianGrid
                 strokeDasharray="3 3"
                 vertical={false}
-                stroke="var(--border)"
+                stroke="var(--color-border)"
               />
               <RechartsCore.XAxis
                 dataKey="name"
-                stroke="var(--muted-foreground)"
+                stroke="var(--color-muted-foreground)"
                 axisLine={false}
                 tickLine={false}
               />
               <RechartsCore.YAxis
-                stroke="var(--muted-foreground)"
+                stroke="var(--color-muted-foreground)"
                 axisLine={false}
                 tickLine={false}
               />
               <RechartsCore.Tooltip
                 cursor={{
-                  stroke: "var(--muted)",
+                  stroke: "var(--color-muted)",
                   strokeWidth: 2,
                   strokeOpacity: 0.3,
                 }}
                 contentStyle={{
-                  backgroundColor: "var(--popover)",
-                  border: "1px solid var(--border)",
+                  backgroundColor: "var(--color-popover)",
+                  border: "1px solid var(--color-border)",
                   borderRadius: "var(--radius)",
-                  color: "var(--popover-foreground)",
+                  color: "var(--color-popover-foreground)",
                 }}
               />
               {showLegend && (
                 <RechartsCore.Legend
                   wrapperStyle={{
-                    color: "var(--foreground)",
+                    color: "var(--color-foreground)",
                   }}
                 />
               )}
@@ -429,26 +429,26 @@ export const Graph = React.forwardRef<HTMLDivElement, GraphProps>(
                 cy="50%"
                 labelLine={false}
                 outerRadius={80}
-                fill="var(--primary)"
+                fill="var(--color-primary)"
               />
               <RechartsCore.Tooltip
                 contentStyle={{
-                  backgroundColor: "var(--popover)",
-                  border: "1px solid var(--border)",
+                  backgroundColor: "var(--color-popover)",
+                  border: "1px solid var(--color-border)",
                   borderRadius: "var(--radius)",
-                  color: "var(--popover-foreground)",
+                  color: "var(--color-popover-foreground)",
                 }}
                 itemStyle={{
-                  color: "var(--popover-foreground)",
+                  color: "var(--color-popover-foreground)",
                 }}
                 labelStyle={{
-                  color: "var(--popover-foreground)",
+                  color: "var(--color-popover-foreground)",
                 }}
               />
               {showLegend && (
                 <RechartsCore.Legend
                   wrapperStyle={{
-                    color: "var(--foreground)",
+                    color: "var(--color-foreground)",
                   }}
                 />
               )}

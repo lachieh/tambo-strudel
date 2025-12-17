@@ -1,5 +1,7 @@
 "use client";
 
+import { THEME_STORAGE_KEY } from "@/lib/editor-theme";
+
 /**
  * Editor Preferences Utility
  *
@@ -8,7 +10,7 @@
  */
 
 const STORAGE_KEYS = {
-  theme: "strudel-editor-theme",
+  theme: THEME_STORAGE_KEY,
   fontFamily: "strudel-editor-font-family",
   fontSize: "strudel-editor-font-size",
   keybindings: "strudel-editor-keybindings",

@@ -2,25 +2,15 @@
 
 import { cn } from "@/lib/utils";
 import { getTheme, setTheme } from "@/lib/editor-preferences";
+import { THEME_ID_ENUM, THEME_OPTIONS, type ThemeId } from "@/lib/editor-theme";
 import * as React from "react";
 import { z } from "zod/v3";
 
-// Available themes - must match data-theme values in globals.css
-const themes = [
-  { id: "default", name: "Tambo Dark", type: "dark" },
-  { id: "dracula", name: "Dracula", type: "dark" },
-  { id: "tokyo-night", name: "Tokyo Night", type: "dark" },
-  { id: "nord", name: "Nord", type: "dark" },
-  { id: "github-light", name: "GitHub Light", type: "light" },
-  { id: "solarized-light", name: "Solarized Light", type: "light" },
-  { id: "one-light", name: "One Light", type: "light" },
-] as const;
-
-type ThemeId = (typeof themes)[number]["id"];
+const allowedThemeIds = new Set<ThemeId>(THEME_OPTIONS.map((t) => t.id));
 
 export const themePickerSchema = z.object({
   theme: z
-    .enum(["default", "dracula", "tokyo-night", "nord", "github-light", "solarized-light", "one-light"])
+    .enum(THEME_ID_ENUM)
     .optional()
     .describe("Theme to pre-select. Only set if user explicitly requests a specific theme."),
   filter: z
@@ -43,7 +33,16 @@ export const ThemePicker = React.forwardRef<HTMLDivElement, ThemePickerProps>(
         setTheme(initialTheme === "default" ? null : initialTheme);
       } else {
         const current = getTheme();
-        setSelectedTheme((current as ThemeId) || "default");
+        if (current && allowedThemeIds.has(current as ThemeId)) {
+          setSelectedTheme(current as ThemeId);
+        } else {
+          setSelectedTheme("default");
+          if (current) {
+            // Normalize invalid stored themes so the next page load doesn't
+            // bootstrap an unknown `data-theme` value.
+            setTheme(null);
+          }
+        }
       }
     }, [initialTheme]);
 
@@ -57,7 +56,7 @@ export const ThemePicker = React.forwardRef<HTMLDivElement, ThemePickerProps>(
       setTheme(themeId === "default" ? null : themeId);
     };
 
-    const filteredThemes = themes.filter(
+    const filteredThemes = THEME_OPTIONS.filter(
       (t) => activeFilter === "all" || t.type === activeFilter
     );
 

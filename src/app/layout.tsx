@@ -1,6 +1,7 @@
 import { Geist, Geist_Mono, Fira_Code, JetBrains_Mono } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
+import { STORED_THEME_IDS, THEME_STORAGE_KEY } from "@/lib/editor-theme";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -22,8 +23,6 @@ const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
 });
 
-const THEME_STORAGE_KEY = "strudel-editor-theme";
-
 function getThemeBootstrapScript(): string {
   return `(() => {
   try {
@@ -31,10 +30,11 @@ function getThemeBootstrapScript(): string {
     if (!('localStorage' in window)) return;
 
     var theme = window.localStorage.getItem(${JSON.stringify(THEME_STORAGE_KEY)});
-
-    // Guard against corrupted values.
-    if (theme && /^[a-z0-9-]+$/.test(theme)) {
+    var allowed = ${JSON.stringify(STORED_THEME_IDS)};
+    if (theme && allowed.indexOf(theme) !== -1) {
       document.documentElement.dataset.theme = theme;
+    } else if (theme) {
+      window.localStorage.removeItem(${JSON.stringify(THEME_STORAGE_KEY)});
     }
   } catch (e) {
     // Ignore storage access errors (e.g. blocked in some privacy modes)
