@@ -10,6 +10,8 @@ type StrudelContextValue = {
   code: string;
   error: string | Error | null;
   setCode: (code: string, shouldPlay?: boolean) => void;
+  visualizationsEnabled: boolean;
+  setVisualizationsEnabled: (enabled: boolean) => void;
   setThreadId: (threadId: string | null) => void;
   setReplId: (replId: string) => void;
   currentReplId: string | null;
@@ -46,6 +48,8 @@ export function StrudelProvider({ children }: { children: React.ReactNode }) {
       return strudelService.getReplState();
     },
   );
+  const [visualizationsEnabled, setVisualizationsEnabledState] =
+    React.useState<boolean>(() => strudelService.getVisualizationsEnabled());
   const [isAiUpdating, setIsAiUpdating] = React.useState(false);
   const [allRepls, setAllRepls] = React.useState<ReplSummary[]>([]);
   const [currentReplId, setCurrentReplId] = React.useState<string | null>(() =>
@@ -98,6 +102,11 @@ export function StrudelProvider({ children }: { children: React.ReactNode }) {
     },
     [],
   );
+
+  const setVisualizationsEnabled = React.useCallback((enabled: boolean) => {
+    strudelService.setVisualizationsEnabled(enabled);
+    setVisualizationsEnabledState(enabled);
+  }, []);
 
   const setThreadId = React.useCallback((threadId: string | null) => {
     strudelService.setThreadId(threadId);
@@ -161,6 +170,8 @@ export function StrudelProvider({ children }: { children: React.ReactNode }) {
       isPlaying,
       hasUnevaluatedChanges,
       setCode,
+      visualizationsEnabled,
+      setVisualizationsEnabled,
       setThreadId,
       setReplId,
       currentReplId,
@@ -184,6 +195,8 @@ export function StrudelProvider({ children }: { children: React.ReactNode }) {
   }, [
     setRoot,
     setCode,
+    visualizationsEnabled,
+    setVisualizationsEnabled,
     setThreadId,
     setReplId,
     currentReplId,

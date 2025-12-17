@@ -17,6 +17,10 @@ import type { TamboComponent, TamboTool } from "@tambo-ai/react";
 import { validateAndUpdateRepl } from "@/strudel/tools/validateAndUpdateRepl";
 import { listSamples } from "@/strudel/tools/listSamples";
 import { MultiSelectForm, multiSelectFormSchema } from "@/components/tambo/multi-select-form";
+import {
+  VisualizationToggle,
+  visualizationToggleSchema,
+} from "@/components/tambo/visualization-toggle";
 
 /**
  * tools
@@ -37,5 +41,12 @@ export const components: TamboComponent[] = [
       "A general-purpose multi-select form component. Renders labeled groups of toggle buttons where users can select multiple options within each group. Uses Tambo state to track user selections in AI context. Use for any scenario where the user needs to pick from categorized options (sounds, features, settings, categories, tags, etc.).",
     component: MultiSelectForm,
     propsSchema: multiSelectFormSchema,
+  },
+  {
+    name: "VisualizationToggle",
+    description:
+      "Show/hide Strudel visualization widgets in the editor without modifying code. Users can add `._pianoroll()`, `._waveform()` (alias of `._scope()`), and `._spectrum()` to any pattern line and multiple visualizations can be shown at once; this component only controls visibility.",
+    component: VisualizationToggle,
+    propsSchema: visualizationToggleSchema,
   },
 ];

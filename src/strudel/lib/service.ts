@@ -18,7 +18,7 @@ import {
   webaudioOutput,
 } from "@strudel/webaudio";
 import { prebake } from "@/strudel/lib/prebake";
-import {
+import type {
   StrudelMirror,
   StrudelMirrorOptions,
   StrudelReplState,
@@ -31,6 +31,9 @@ import type {
 
 type LoadingCallback = (status: string, progress: number) => void;
 type CodeChangeCallback = (state: StrudelReplState) => void;
+
+const VISUALIZATIONS_HIDDEN_CLASS = "strudel-visualizations-hidden";
+const VISUALIZATIONS_HIDDEN_STYLE_ID = "strudel-visualizations-hidden-style";
 
 const DEFAULT_CODE = `// Welcome to StrudelLM!
 // Write patterns here or ask the AI for help
@@ -68,7 +71,63 @@ export class StrudelService {
   // Storage adapter (can be swapped for Jazz or localStorage)
   private storageAdapter: StrudelStorageAdapter | null = null;
 
+  private visualizationWidgetsRegistered = false;
+  private visualizationsEnabled = true;
+
   private constructor() {}
+
+  private registerVisualizationWidgets(
+    registerWidget: (
+      type: string,
+      fn?: (id: string, options?: unknown, pat?: unknown) => unknown,
+    ) => void,
+  ): void {
+    if (this.visualizationWidgetsRegistered) return;
+
+    // Strudel's built-in codemirror widgets include `._scope()` (time-domain oscilloscope).
+    // Strudel already exposes widgets like `._pianoroll()` and `._spectrum()`.
+    // This app additionally supports the alias `._waveform()` so the AI can use a more obvious name.
+    registerWidget(
+      "_waveform",
+      (id: string, options: unknown, pat?: unknown) => {
+        const maybePattern = pat as
+          | { _scope?: (id: string, options?: unknown) => unknown }
+          | undefined;
+        if (!maybePattern?._scope) return pat;
+        return maybePattern._scope(id, options);
+      },
+    );
+
+    this.visualizationWidgetsRegistered = true;
+  }
+
+  private ensureVisualizationVisibilityStyles(): void {
+    if (typeof document === "undefined") return;
+    if (document.getElementById(VISUALIZATIONS_HIDDEN_STYLE_ID)) return;
+
+    const styleEl = document.createElement("style");
+    styleEl.id = VISUALIZATIONS_HIDDEN_STYLE_ID;
+    styleEl.innerHTML = `
+      .${VISUALIZATIONS_HIDDEN_CLASS} [id*="_widget__pianoroll_"],
+      .${VISUALIZATIONS_HIDDEN_CLASS} [id*="_widget__spectrum_"],
+      .${VISUALIZATIONS_HIDDEN_CLASS} [id*="_widget__scope_"],
+      .${VISUALIZATIONS_HIDDEN_CLASS} [id*="_widget__waveform_"] {
+        display: none !important;
+      }
+    `;
+    document.head.appendChild(styleEl);
+  }
+
+  private applyVisualizationVisibility(): void {
+    this.ensureVisualizationVisibilityStyles();
+
+    if (!this.containerElement) return;
+
+    this.containerElement.classList.toggle(
+      VISUALIZATIONS_HIDDEN_CLASS,
+      !this.visualizationsEnabled,
+    );
+  }
 
   /**
    * Get or create the singleton instance
@@ -135,6 +194,15 @@ export class StrudelService {
    */
   get isReady(): boolean {
     return this.isAudioInitialized && this.editorInstance !== null;
+  }
+
+  getVisualizationsEnabled(): boolean {
+    return this.visualizationsEnabled;
+  }
+
+  setVisualizationsEnabled(enabled: boolean): void {
+    this.visualizationsEnabled = enabled;
+    this.applyVisualizationVisibility();
   }
 
   /**
@@ -562,7 +630,25 @@ export class StrudelService {
    * Attach the StrudelMirror editor to an HTML element
    */
   attach = async (container: HTMLElement): Promise<void> => {
-    const { StrudelMirror } = await import("@strudel/codemirror");
+    const codemirror = await import("@strudel/codemirror");
+    const StrudelMirror = codemirror.StrudelMirror;
+
+    // `registerWidget` is exported by `@strudel/codemirror`, but isn't present in the package's
+    // current type definitions.
+    const registerWidget = (codemirror as unknown as {
+      registerWidget?: (
+        type: string,
+        fn?: (id: string, options?: unknown, pat?: unknown) => unknown,
+      ) => void;
+    }).registerWidget;
+
+    if (registerWidget) {
+      this.registerVisualizationWidgets(registerWidget);
+    } else if (process.env.NODE_ENV !== "production") {
+      console.warn(
+        "StrudelService.attach: codemirror.registerWidget is not available; visualizations will be disabled.",
+      );
+    }
 
     // If already attached to this container, do nothing
     if (this.containerElement === container && this.editorInstance) {
@@ -632,6 +718,7 @@ export class StrudelService {
       }
 
       this.fixTheme();
+      this.applyVisualizationVisibility();
     } finally {
       this.isInitializing = false;
     }

@@ -1,0 +1,83 @@
+"use client";
+
+import { cn } from "@/lib/utils";
+import { useStrudel } from "@/strudel/context/strudel-provider";
+import { useTamboComponentState } from "@tambo-ai/react";
+import * as React from "react";
+import { z } from "zod/v3";
+
+export const visualizationToggleSchema = z.object({
+  title: z
+    .string()
+    .optional()
+    .describe("Optional title shown above the visualization toggle"),
+});
+
+export type VisualizationToggleProps = z.infer<typeof visualizationToggleSchema>;
+
+export function VisualizationToggle({
+  title = "Visualizations",
+}: VisualizationToggleProps) {
+  const { visualizationsEnabled, setVisualizationsEnabled } = useStrudel();
+
+  const [enabled, setEnabled] = useTamboComponentState<boolean>(
+    "visualizationsEnabled",
+    visualizationsEnabled,
+  );
+
+  React.useEffect(() => {
+    if (enabled !== visualizationsEnabled) {
+      setEnabled(visualizationsEnabled);
+    }
+  }, [enabled, visualizationsEnabled, setEnabled]);
+
+  return (
+    <div
+      className="w-full rounded-lg border border-border bg-card p-4 space-y-3"
+      data-slot="visualization-toggle"
+    >
+      <div className="text-sm font-medium text-foreground">{title}</div>
+
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            setEnabled(true);
+            setVisualizationsEnabled(true);
+          }}
+          className={cn(
+            "px-3 py-1.5 rounded-md text-sm border transition-all",
+            "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1",
+            enabled
+              ? "bg-primary text-primary-foreground border-primary"
+              : "bg-muted text-muted-foreground border-border hover:bg-muted/80 hover:text-foreground",
+          )}
+        >
+          Show
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setEnabled(false);
+            setVisualizationsEnabled(false);
+          }}
+          className={cn(
+            "px-3 py-1.5 rounded-md text-sm border transition-all",
+            "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1",
+            !enabled
+              ? "bg-primary text-primary-foreground border-primary"
+              : "bg-muted text-muted-foreground border-border hover:bg-muted/80 hover:text-foreground",
+          )}
+        >
+          Hide
+        </button>
+      </div>
+
+      <div className="text-xs text-muted-foreground">
+        This toggle only shows/hides visualization widgets in the editor. It does
+        not change your Strudel code.
+      </div>
+    </div>
+  );
+}
