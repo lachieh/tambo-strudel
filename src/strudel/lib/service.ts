@@ -1252,10 +1252,6 @@ export class StrudelService {
 
   evaluate = async (code: string, play: boolean = false): Promise<void> => {
     if (this.isExporting) {
-      if (play) {
-        this.restartPlaybackAfterExport = true;
-        return;
-      }
       throw new Error("Evaluation is disabled during export");
     }
     const result = await this.editorInstance?.repl.evaluate(code, play);
