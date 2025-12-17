@@ -9,6 +9,7 @@ interface ExportModalProps {
 }
 
 export function ExportModal({ onClose }: ExportModalProps) {
+  const dialogRef = React.useRef<HTMLDivElement | null>(null);
   const [cycles, setCycles] = React.useState<number>(8);
   const [format, setFormat] = React.useState<"wav">("wav");
   const [isExporting, setIsExporting] = React.useState(false);
@@ -18,6 +19,14 @@ export function ExportModal({ onClose }: ExportModalProps) {
     if (isExporting) return;
     onClose();
   }, [isExporting, onClose]);
+
+  React.useEffect(() => {
+    const previousActive = document.activeElement as HTMLElement | null;
+    dialogRef.current?.focus();
+    return () => {
+      previousActive?.focus();
+    };
+  }, []);
 
   const download = React.useCallback(async () => {
     if (isExporting) return;
@@ -62,7 +71,19 @@ export function ExportModal({ onClose }: ExportModalProps) {
       />
 
       {/* Modal */}
-      <div className="relative bg-background border border-border rounded-xl shadow-lg max-w-md w-full mx-4 p-6">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Export current Strudel song"
+        tabIndex={-1}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") {
+            handleClose();
+          }
+        }}
+        className="relative bg-background border border-border rounded-xl shadow-lg max-w-md w-full mx-4 p-6"
+      >
         <button
           onClick={handleClose}
           disabled={isExporting}
