@@ -131,7 +131,6 @@ export const FeedbackForm = React.forwardRef<HTMLDivElement, FeedbackFormProps>(
       draftBody,
       effectiveIssueType,
       userEmail,
-      config.githubNewIssue,
     ]);
 
     const isDisabled = isSubmitted || isSending;
