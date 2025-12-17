@@ -1,5 +1,3 @@
-"use client";
-
 function writeAscii(view: DataView, offset: number, value: string): number {
   for (let i = 0; i < value.length; i++) {
     view.setUint8(offset + i, value.charCodeAt(i));
