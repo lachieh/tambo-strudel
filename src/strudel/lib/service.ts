@@ -45,7 +45,7 @@ type WebaudioOutputFn = (
   duration: number,
   cps: number,
   targetTime: number,
-) => void | Promise<void>;
+) => void;
 
 const DEFAULT_CODE = `// Welcome to StrudelLM!
 // Write patterns here or ask the AI for help
@@ -73,6 +73,7 @@ export class StrudelService {
   // Audio engine state
   private isAudioInitialized = false;
   private isExporting = false;
+  private restartPlaybackAfterExport = false;
 
   // Editor state
   private editorInstance: StrudelMirror | null = null;
@@ -148,7 +149,6 @@ export class StrudelService {
 
   private static async withDefaultAudioContext<T>(
     ctx: BaseAudioContext,
-    restoreTo: BaseAudioContext,
     fn: () => Promise<T>,
   ): Promise<T> {
     if (StrudelService.isDefaultAudioContextSwapInProgress) {
@@ -156,6 +156,8 @@ export class StrudelService {
     }
 
     StrudelService.isDefaultAudioContextSwapInProgress = true;
+
+    const restoreTo = getAudioContext();
 
     // Note: this mutates global Strudel/Superdough state and should only be used
     // while real-time audio playback is paused.
@@ -196,13 +198,11 @@ export class StrudelService {
     cycles,
     cps,
     sampleRate,
-    restoreTo,
   }: {
     pattern: unknown;
     cycles: number;
     cps: number;
     sampleRate: number;
-    restoreTo: BaseAudioContext;
   }): Promise<AudioBuffer> {
     const seconds = cycles / cps;
     const numFrames = Math.ceil(seconds * sampleRate);
@@ -210,7 +210,6 @@ export class StrudelService {
 
     return await StrudelService.withDefaultAudioContext(
       offlineContext,
-      restoreTo,
       async () => {
         const queryArc = (pattern as {
           queryArc?: (begin: number, end: number, context: unknown) => unknown[];
@@ -238,7 +237,7 @@ export class StrudelService {
           const durationSeconds = durationCyclesValue / cps;
           const targetTime = wholeBeginValue / cps;
 
-          await offlineWebaudioOutput(hap, 0, durationSeconds, cps, targetTime);
+          offlineWebaudioOutput(hap, 0, durationSeconds, cps, targetTime);
         }
 
         return await offlineContext.startRendering();
@@ -1143,6 +1142,9 @@ const keybindings = getKeybindings();
   };
 
   stop = (): void => {
+    if (this.isExporting) {
+      this.restartPlaybackAfterExport = false;
+    }
     this.editorInstance?.repl.stop();
     this.pendingSchedulerWaitCancel?.();
     this.unregisterGlobalErrorHandlers();
@@ -1168,8 +1170,9 @@ const keybindings = getKeybindings();
 
     const code = this.getCode();
     const wasPlaying = this.isPlaying;
+    this.restartPlaybackAfterExport = wasPlaying;
     if (wasPlaying) {
-      this.stop();
+      this.editorInstance?.repl.stop();
     }
 
     const activeContext = getAudioContext();
@@ -1185,7 +1188,6 @@ const keybindings = getKeybindings();
           cycles,
           cps,
           sampleRate: activeContext.sampleRate,
-          restoreTo: activeContext,
         },
       );
 
@@ -1198,7 +1200,10 @@ const keybindings = getKeybindings();
       return audioBufferToWavBlob(renderedBuffer);
     } finally {
       this.isExporting = false;
-      if (wasPlaying) {
+      const shouldRestart = this.restartPlaybackAfterExport;
+      this.restartPlaybackAfterExport = false;
+
+      if (shouldRestart) {
         await this.play();
       }
     }

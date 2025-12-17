@@ -26,7 +26,7 @@ declare module "@strudel/webaudio" {
     duration?: number,
     cps?: number,
     targetTime?: number,
-  ): void | Promise<void>;
+  ): void;
 
   /** Get the current audio context */
   export function getAudioContext(): AudioContext;

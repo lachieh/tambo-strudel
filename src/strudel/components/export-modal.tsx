@@ -80,6 +80,26 @@ export function ExportModal({ onClose }: ExportModalProps) {
         onKeyDown={(e) => {
           if (e.key === "Escape") {
             handleClose();
+            return;
+          }
+
+          if (e.key === "Tab") {
+            const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
+              'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+            );
+            if (!focusable || focusable.length === 0) return;
+
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            const active = document.activeElement;
+
+            if (e.shiftKey && active === first) {
+              e.preventDefault();
+              last.focus();
+            } else if (!e.shiftKey && active === last) {
+              e.preventDefault();
+              first.focus();
+            }
           }
         }}
         className="relative bg-background border border-border rounded-xl shadow-lg max-w-md w-full mx-4 p-6"
