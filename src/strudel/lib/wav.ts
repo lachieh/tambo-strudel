@@ -6,6 +6,7 @@ function writeAscii(view: DataView, offset: number, value: string): number {
 }
 
 export function audioBufferToWavBlob(audioBuffer: AudioBuffer): Blob {
+  // Assumes a browser-like environment (or Web Worker) with a Blob implementation.
   if (typeof Blob === "undefined") {
     throw new Error("Cannot export WAV: Blob API is not available");
   }

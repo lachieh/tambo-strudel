@@ -64,6 +64,8 @@ stack(
 
 const ALLOWED_KEYBINDINGS = ["codemirror", "vim", "emacs", "vscode"] as const;
 const MAX_EXPORT_CYCLES = 64;
+// Hard caps on offline rendering to avoid massive OfflineAudioContext allocations.
+// MAX_EXPORT_FRAMES: 10M frames at 48kHz is ~208s (per channel).
 const MAX_EXPORT_SECONDS = 120;
 const MAX_EXPORT_FRAMES = 10_000_000;
 
