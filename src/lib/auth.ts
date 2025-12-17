@@ -101,10 +101,24 @@ async function ensureJazzColumns(pool: Pool) {
 
 let postgresPool: Pool | null = null;
 
+function initPostgresPool(): Pool | null {
+  if (!databaseUrl || !databaseUrl.startsWith("postgres")) return null;
+
+  if (!postgresPool) {
+    postgresPool = new Pool({
+      connectionString: databaseUrl,
+      max: 5,
+    });
+  }
+
+  return postgresPool;
+}
+
+// Song sharing is only supported when Better Auth is configured with Postgres.
 export function getPostgresPool(): Pool {
   if (!postgresPool) {
     throw new Error(
-      "Song sharing requires a Postgres DATABASE_URL. Configure a Postgres database and set DATABASE_URL.",
+      "Postgres database is not configured. Set a Postgres DATABASE_URL to enable persistence.",
     );
   }
   return postgresPool;
@@ -115,12 +129,8 @@ let dbReadyPromise: Promise<void> | null = null;
 
 function getDatabaseConfig() {
   // Prefer Postgres when a DATABASE_URL is provided
-  if (databaseUrl && databaseUrl.startsWith("postgres")) {
-    const pool = new Pool({
-      connectionString: databaseUrl,
-      max: 5,
-    });
-    postgresPool = pool;
+  const pool = initPostgresPool();
+  if (pool) {
     const dialect = new PostgresDialect({ pool });
 
     // Run Better Auth migrations once (creates user/session tables)

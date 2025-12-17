@@ -12,12 +12,15 @@ export type SongShare = {
   createdAt: number;
 };
 
+async function getSongSharePool() {
+  await waitForDatabase();
+  return getPostgresPool();
+}
+
 export async function getLatestSongShareCreatedAt(
   ownerUserId: string,
 ): Promise<number | null> {
-  await waitForDatabase();
-
-  const pool = getPostgresPool();
+  const pool = await getSongSharePool();
   const result = await pool.query(
     `SELECT created_at FROM song_share WHERE owner_user_id = $1 ORDER BY created_at DESC LIMIT 1`,
     [ownerUserId],
@@ -31,8 +34,6 @@ export async function createSongShare(input: {
   code: string;
   title?: string | null;
 }): Promise<SongShare> {
-  await waitForDatabase();
-
   const share: SongShare = {
     id: randomUUID(),
     ownerUserId: input.ownerUserId,
@@ -41,7 +42,7 @@ export async function createSongShare(input: {
     createdAt: Date.now(),
   };
 
-  const pool = getPostgresPool();
+  const pool = await getSongSharePool();
   await pool.query(
     `INSERT INTO song_share (id, owner_user_id, code, title, created_at) VALUES ($1, $2, $3, $4, $5)`,
     [share.id, share.ownerUserId, share.code, share.title, share.createdAt],
@@ -50,9 +51,7 @@ export async function createSongShare(input: {
 }
 
 export async function getSongShare(shareId: string): Promise<SongShare | null> {
-  await waitForDatabase();
-
-  const pool = getPostgresPool();
+  const pool = await getSongSharePool();
   const result = await pool.query(
     `SELECT id, owner_user_id, code, title, created_at FROM song_share WHERE id = $1 LIMIT 1`,
     [shareId],

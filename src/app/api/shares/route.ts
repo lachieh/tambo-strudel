@@ -39,30 +39,39 @@ export async function POST(req: NextRequest) {
       userId: session.user.id,
       issues: parsed.error.issues,
     });
-    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+    return NextResponse.json(
+      {
+        error: "Invalid request",
+        issues:
+          process.env.NODE_ENV === "development" ? parsed.error.issues : undefined,
+      },
+      { status: 400 },
+    );
   }
 
   const latestCreatedAt = await getLatestSongShareCreatedAt(session.user.id);
   const now = Date.now();
-  if (
-    typeof latestCreatedAt === "number" &&
-    now - latestCreatedAt < MIN_TIME_BETWEEN_SHARES_MS
-  ) {
-    const retryAfterSeconds = Math.ceil(
-      (MIN_TIME_BETWEEN_SHARES_MS - (now - latestCreatedAt)) / 1000,
-    );
-    return NextResponse.json(
-      {
-        error:
-          "Rate limit exceeded. Please wait before creating another share.",
-      },
-      {
-        status: 429,
-        headers: {
-          "retry-after": retryAfterSeconds.toString(),
+  if (latestCreatedAt !== null) {
+    const diff = now - latestCreatedAt;
+
+    if (diff < MIN_TIME_BETWEEN_SHARES_MS) {
+      const retryAfterSeconds = Math.ceil(
+        (MIN_TIME_BETWEEN_SHARES_MS - diff) / 1000,
+      );
+
+      return NextResponse.json(
+        {
+          error:
+            "Rate limit exceeded. Please wait before creating another share.",
         },
-      },
-    );
+        {
+          status: 429,
+          headers: {
+            "Retry-After": retryAfterSeconds.toString(),
+          },
+        },
+      );
+    }
   }
 
   const share = await createSongShare({
