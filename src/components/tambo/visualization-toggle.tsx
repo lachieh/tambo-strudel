@@ -61,50 +61,102 @@ function stripTrailingVisualizationFromLine(
   return { type: lastType, strippedLine: currentLine };
 }
 
-function getTrailingVisualization(code: string): VisualizationOrOff {
-  const lines = code.split("\n");
-  for (let i = lines.length - 1; i >= 0; i--) {
-    const line = lines[i] ?? "";
-    if (!line.trim()) continue;
-    return stripTrailingVisualizationFromLine(line).type;
+function getDetectedVisualization(code: string): VisualizationOrOff {
+  let best: { type: VisualizationType; index: number } | null = null;
+
+  for (const candidate of VISUALIZATION_OPTIONS) {
+    const callVariants = [candidate.methodCall, ...(candidate.aliases ?? [])];
+    for (const call of callVariants) {
+      const idx = code.lastIndexOf(call);
+      if (idx === -1) continue;
+
+      if (!best || idx > best.index) {
+        best = { type: candidate.id, index: idx };
+      }
+    }
   }
+
+  return best?.type ?? null;
+}
+
+function stripVisualizationsFromCode(
+  code: string,
+): { detectedVisualization: VisualizationOrOff; strippedCode: string } {
+  const hadTrailingNewline = code.endsWith("\n");
+  const rawLines = code.split("\n");
+  const lines = hadTrailingNewline ? rawLines.slice(0, -1) : rawLines;
+
+  let detectedVisualization: VisualizationOrOff = null;
+  const updatedLines: string[] = [];
+
+  for (const line of lines) {
+    const { type, strippedLine } = stripTrailingVisualizationFromLine(line);
+    if (type) detectedVisualization = type;
+    if (type && !strippedLine.trim()) {
+      continue;
+    }
+
+    updatedLines.push(strippedLine);
+  }
+
+  const updated = updatedLines.join("\n");
+
+  return {
+    detectedVisualization,
+    strippedCode: hadTrailingNewline ? `${updated}\n` : updated,
+  };
+}
+
+function getLineIndexFromCursorLocation(
+  code: string,
+  cursorLocation: number | null,
+): number | null {
+  if (cursorLocation === null) return null;
+
+  const lines = code.split("\n");
+  let offset = 0;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i] ?? "";
+    const nextOffset = offset + line.length;
+    if (cursorLocation <= nextOffset) {
+      return i;
+    }
+    offset = nextOffset + 1;
+  }
+
+  return lines.length > 0 ? lines.length - 1 : null;
+}
+
+function findNearestNonEmptyLineIndex(
+  lines: string[],
+  preferredIndex: number,
+): number | null {
+  if (preferredIndex < 0 || preferredIndex >= lines.length) return null;
+  if (lines[preferredIndex]?.trim()) return preferredIndex;
+
+  for (let i = preferredIndex - 1; i >= 0; i--) {
+    if (lines[i]?.trim()) return i;
+  }
+
+  for (let i = preferredIndex + 1; i < lines.length; i++) {
+    if (lines[i]?.trim()) return i;
+  }
+
   return null;
 }
 
-function setTrailingVisualization(
+function setVisualization(
   code: string,
   next: VisualizationOrOff,
+  cursorLocation: number | null,
 ): string {
-  const lines = code.split("\n");
-  const hadTrailingNewline = code.endsWith("\n");
-
-  // Remove trailing empty lines.
-  while (lines.length > 0 && !lines[lines.length - 1]?.trim()) {
-    lines.pop();
-  }
-
-  if (lines.length === 0) {
-    return code;
-  }
-
-  const lastIndex = lines.length - 1;
-  const lastLine = lines[lastIndex] ?? "";
-  const { strippedLine } = stripTrailingVisualizationFromLine(lastLine);
-
-  if (!strippedLine.trim()) {
-    lines.pop();
-  } else {
-    lines[lastIndex] = strippedLine;
-  }
-
-  // Remove any whitespace introduced by stripping.
-  while (lines.length > 0 && !lines[lines.length - 1]?.trim()) {
-    lines.pop();
-  }
+  const preferredLineIndex =
+    getLineIndexFromCursorLocation(code, cursorLocation) ?? 0;
+  const { strippedCode } = stripVisualizationsFromCode(code);
 
   if (!next) {
-    const updated = lines.join("\n");
-    return hadTrailingNewline ? `${updated}\n` : updated;
+    return strippedCode;
   }
 
   const nextOption = VISUALIZATION_OPTIONS.find((o) => o.id === next);
@@ -112,18 +164,37 @@ function setTrailingVisualization(
     return code;
   }
 
-  const newLastIndex = lines.length - 1;
-  const newLastLine = lines[newLastIndex] ?? "";
+  const hadTrailingNewline = strippedCode.endsWith("\n");
+  const rawLines = strippedCode.split("\n");
+  const lines = hadTrailingNewline ? rawLines.slice(0, -1) : rawLines;
 
-  // If the code ends with a semicolon, a following line starting with "." will break.
-  // Prefer stripping the semicolon instead of rewriting the whole expression.
-  if (/;\s*$/.test(newLastLine)) {
-    lines[newLastIndex] = newLastLine.replace(/;\s*$/, "");
+  const clampedPreferredIndex = Math.min(
+    Math.max(preferredLineIndex, 0),
+    Math.max(lines.length - 1, 0),
+  );
+  const targetIndex = findNearestNonEmptyLineIndex(
+    lines,
+    clampedPreferredIndex,
+  );
+
+  if (targetIndex === null) {
+    return strippedCode;
   }
 
-  const indentMatch = newLastLine.match(/^(\s*)\./);
-  const indent = indentMatch?.[1] ?? "";
-  lines.push(`${indent}${nextOption.methodCall}`);
+  const originalLine = lines[targetIndex] ?? "";
+  const { strippedLine } = stripTrailingVisualizationFromLine(originalLine);
+
+  const withoutTrailingWhitespace = strippedLine.trimEnd();
+  if (!withoutTrailingWhitespace.trim()) {
+    return strippedCode;
+  }
+
+  if (withoutTrailingWhitespace.endsWith(";")) {
+    const withoutSemicolon = withoutTrailingWhitespace.slice(0, -1);
+    lines[targetIndex] = `${withoutSemicolon}${nextOption.methodCall};`;
+  } else {
+    lines[targetIndex] = `${withoutTrailingWhitespace}${nextOption.methodCall}`;
+  }
 
   const updated = lines.join("\n");
   return hadTrailingNewline ? `${updated}\n` : updated;
@@ -132,10 +203,10 @@ function setTrailingVisualization(
 export function VisualizationToggle({
   title = "Visualization",
 }: VisualizationToggleProps) {
-  const { code, setCode, isPlaying } = useStrudel();
+  const { code, setCode, isPlaying, getCursorLocation } = useStrudel();
 
   const detectedVisualization = React.useMemo(
-    () => getTrailingVisualization(code),
+    () => getDetectedVisualization(code),
     [code],
   );
 
@@ -165,7 +236,7 @@ export function VisualizationToggle({
         <button
           type="button"
           onClick={() => {
-            const updated = setTrailingVisualization(code, null);
+            const updated = setVisualization(code, null, getCursorLocation());
             setCode(updated, isPlaying);
             setSelectedVisualization(null);
           }}
@@ -188,7 +259,11 @@ export function VisualizationToggle({
               type="button"
               onClick={() => {
                 const next = isActive ? null : option.id;
-                const updated = setTrailingVisualization(code, next);
+                const updated = setVisualization(
+                  code,
+                  next,
+                  getCursorLocation(),
+                );
                 setCode(updated, isPlaying);
                 setSelectedVisualization(next);
               }}

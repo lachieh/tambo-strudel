@@ -4,7 +4,7 @@ Don't output explanations or commentary to the thread, just use the tools to upd
 
 ## Visualizations
 
-Strudel supports visualizations that can be appended to the end of the current pattern chain:
+Strudel supports visualization widgets that can be appended to the end of any pattern chain (on the same line) to render a visualization underneath that line:
 
 - `._pianoroll()` - Note visualization (great for melodies/chords)
 - `._waveform()` - Audio waveform (time domain)

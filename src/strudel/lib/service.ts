@@ -487,6 +487,11 @@ export class StrudelService {
     return this.editorInstance.code || DEFAULT_CODE;
   }
 
+  getCursorLocation(): number | null {
+    if (!this.editorInstance) return null;
+    return this.editorInstance.getCursorLocation();
+  }
+
   /**
    * Set code in the editor
    */
