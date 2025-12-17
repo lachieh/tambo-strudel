@@ -78,7 +78,7 @@ export class StrudelService {
     event: PromiseRejectionEvent,
   ) => void) | null = null;
   private errorHandler: ((event: ErrorEvent) => void) | null = null;
-  private originalConsoleError: ((...data: any[]) => void) | null = null;
+  private originalConsoleError: ((...data: unknown[]) => void) | null = null;
 
   private revertNotificationId = 0;
   private updateOperationId = 0;
@@ -983,7 +983,7 @@ const keybindings = getKeybindings();
   private waitForSchedulerError = (
     operationId: number,
     timeoutMs: number = 500,
-  ): Promise<Error | null> => {
+  ): Promise<Error | string | null> => {
     return new Promise((resolve) => {
       let resolved = false;
       let timeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -1037,7 +1037,7 @@ const keybindings = getKeybindings();
             this.pendingSchedulerWaitCancel = null;
           }
           // Check one more time for any error that might have been set
-          resolve(this._state.schedulerError || null);
+          resolve(this._state.schedulerError ?? null);
         }
       }, timeoutMs);
 
