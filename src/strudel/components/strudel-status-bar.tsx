@@ -22,6 +22,12 @@ function categorizeError(error: string | Error): string {
   if (/\b(?:sound|sample)\s+.+\s+not\s+found\b/i.test(errorMsg)) {
     return "invalid_sample";
   }
+  if (
+    /\b(?:sound|sample)\b/i.test(errorMsg) &&
+    /(not found|not loaded|is it loaded)/i.test(errorMsg)
+  ) {
+    return "invalid_sample";
+  }
   if (lowerMsg.includes("undefined") || lowerMsg.includes("not a pattern")) {
     return "invalid_pattern";
   }

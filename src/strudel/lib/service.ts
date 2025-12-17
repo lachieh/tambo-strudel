@@ -621,7 +621,14 @@ export class StrudelService {
   };
 
   private isSampleErrorMessage(message: string): boolean {
-    return /\b(?:sound|sample)\s+.+\s+not\s+found\b/i.test(message);
+    if (/\b(?:sound|sample)\s+.+\s+not\s+found\b/i.test(message)) {
+      return true;
+    }
+
+    return (
+      /\b(?:sound|sample)\b/i.test(message) &&
+      /(not found|not loaded|is it loaded)/i.test(message)
+    );
   }
 
   private isAudioWorkletErrorMessage(message: string): boolean {
