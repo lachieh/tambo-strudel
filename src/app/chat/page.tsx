@@ -311,7 +311,9 @@ function AppContent() {
       </ThreadHistory>
 
       {/* Beta Modal */}
-      <BetaModal open={showBetaModal} onOpenChange={setShowBetaModal} />
+      {showBetaModal && (
+        <BetaModal open={showBetaModal} onOpenChange={setShowBetaModal} />
+      )}
     </Frame>
   );
 }

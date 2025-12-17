@@ -64,11 +64,8 @@ export function ExportModal({ open, onOpenChange }: ExportModalProps) {
     <Dialog.Root
       open={open}
       onOpenChange={(nextOpen) => {
-        if (!nextOpen) {
-          handleClose();
-          return;
-        }
-        onOpenChange(true);
+        if (!nextOpen && isExporting) return;
+        onOpenChange(nextOpen);
       }}
     >
       <Dialog.Portal>
