@@ -1040,7 +1040,7 @@ export class StrudelService {
         prebake: this.prebake,
       });
 
-const keybindings = getKeybindings();
+      const keybindings = getKeybindings();
       const resolvedKeybindings =
         keybindings &&
         (ALLOWED_KEYBINDINGS as readonly string[]).includes(keybindings)
@@ -1050,6 +1050,33 @@ const keybindings = getKeybindings();
       if (typeof this.editorInstance.changeSetting === "function") {
         this.editorInstance.changeSetting("keybindings", resolvedKeybindings);
       }
+
+      const originalEvaluate = this.editorInstance.evaluate.bind(this.editorInstance);
+      this.editorInstance.evaluate = async () => {
+        if (this.isExporting) {
+          this.restartPlaybackAfterExport = true;
+          return;
+        }
+        await originalEvaluate();
+      };
+
+      const originalToggle = this.editorInstance.toggle.bind(this.editorInstance);
+      this.editorInstance.toggle = async () => {
+        if (this.isExporting) {
+          return;
+        }
+        await originalToggle();
+      };
+
+      const originalStop = this.editorInstance.stop.bind(this.editorInstance);
+      this.editorInstance.stop = async () => {
+        if (this.isExporting) {
+          this.restartPlaybackAfterExport = false;
+          return;
+        }
+        await originalStop();
+      };
+
       await this.prebake();
 
       if (oldEditor) {
@@ -1318,7 +1345,6 @@ const keybindings = getKeybindings();
     // Save current state before attempting update
     const previousCode = this.getCode();
     const wasPlaying = this.isPlaying;
-
     try {
       this.ensureNotExporting("Playback");
 
