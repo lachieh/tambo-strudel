@@ -6,6 +6,7 @@ import {
   setEditorKeybindings,
   DEFAULT_KEYBINDINGS,
 } from "@/lib/editor-preferences";
+import { StrudelService } from "@/strudel/lib/service";
 import { useTamboStreamStatus } from "@tambo-ai/react";
 import * as React from "react";
 import { z } from "zod/v3";
@@ -43,34 +44,27 @@ export const KeybindingsPicker = React.forwardRef<
   const [pendingKeybindings, setPendingKeybindings] = React.useState<
     string | null
   >(null);
+  const [isApplying, setIsApplying] = React.useState(false);
 
-  // Initialize from localStorage and apply the AI prop (if provided).
+  // Initialize from localStorage and treat any AI prop as a pending selection.
   React.useEffect(() => {
     if (initializedRef.current) return;
     initializedRef.current = true;
 
     const savedKeybindings = getKeybindings();
     const initialKeybindings = savedKeybindings || DEFAULT_KEYBINDINGS;
-
-    if (keybindings) {
-      if (keybindings !== initialKeybindings) {
-        setEditorKeybindings(keybindings);
-      }
-      setSelectedKeybindings(keybindings);
-      setPendingKeybindings(null);
-      return;
-    }
-
     setSelectedKeybindings(initialKeybindings);
+
+    if (keybindings && keybindings !== initialKeybindings) {
+      setPendingKeybindings(keybindings);
+    }
   }, [keybindings]);
 
   // Handle AI prop changes after initial mount
   React.useEffect(() => {
     if (!initializedRef.current) return;
     if (keybindings && keybindings !== selectedKeybindings) {
-      setEditorKeybindings(keybindings);
-      setSelectedKeybindings(keybindings);
-      setPendingKeybindings(null);
+      setPendingKeybindings(keybindings);
     }
   }, [keybindings, selectedKeybindings]);
 
@@ -78,12 +72,18 @@ export const KeybindingsPicker = React.forwardRef<
     setPendingKeybindings(value);
   };
 
-  const handleSave = () => {
+  const handleApplyAndRestart = async () => {
     if (!pendingKeybindings) return;
 
-    setEditorKeybindings(pendingKeybindings);
-    setSelectedKeybindings(pendingKeybindings);
-    setPendingKeybindings(null);
+    setIsApplying(true);
+    try {
+      setEditorKeybindings(pendingKeybindings);
+      await StrudelService.instance().applyKeybindingsAndRestart();
+      setSelectedKeybindings(pendingKeybindings);
+      setPendingKeybindings(null);
+    } finally {
+      setIsApplying(false);
+    }
   };
 
   const isStreaming = streamStatus.isStreaming;
@@ -127,7 +127,7 @@ export const KeybindingsPicker = React.forwardRef<
             <button
               key={option.value}
               onClick={() => handleKeybindingsSelect(option.value)}
-              disabled={isStreaming}
+              disabled={isStreaming || isApplying}
               className={cn(
                 "px-3 py-1.5 rounded-md text-sm border transition-all",
                 "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1",
@@ -148,11 +148,11 @@ export const KeybindingsPicker = React.forwardRef<
         )}
       </div>
 
-      {/* Save button */}
+      {/* Apply button */}
       <div className="flex justify-end">
         <button
-          onClick={handleSave}
-          disabled={!hasChanges || isStreaming}
+          onClick={handleApplyAndRestart}
+          disabled={!hasChanges || isStreaming || isApplying}
           className={cn(
             "px-4 py-2 rounded-md text-sm font-medium transition-all",
             "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1",
@@ -162,14 +162,13 @@ export const KeybindingsPicker = React.forwardRef<
               : "bg-muted text-muted-foreground",
           )}
         >
-          Save (refresh to apply)
+          {isApplying ? "Applying..." : "Apply & Restart Runtime"}
         </button>
       </div>
 
       {/* Info text */}
       <p className="text-xs text-muted-foreground">
-        Keybindings are applied the next time the editor loads (refresh the
-        page).
+        Changing keybindings requires restarting the editor runtime.
       </p>
 
       {streamStatus.isError && streamStatus.streamError && (

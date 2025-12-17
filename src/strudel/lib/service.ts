@@ -28,6 +28,7 @@ import type {
   StrudelStorageAdapter,
   ReplSummary,
 } from "@/hooks/use-strudel-storage";
+import { DEFAULT_KEYBINDINGS, getKeybindings } from "@/lib/editor-preferences";
 
 type LoadingCallback = (status: string, progress: number) => void;
 type CodeChangeCallback = (state: StrudelReplState) => void;
@@ -498,11 +499,6 @@ export class StrudelService {
         this.stop();
       }
 
-      // Detach and reattach the editor
-      // Note: The keybindings need to be loaded dynamically
-      // For now, we'll store the preference and it will be applied on next page load
-      // A full implementation would require modifying the attach() method to accept keybindings
-
       // Detach current editor
       this.detach();
 
@@ -625,6 +621,7 @@ export class StrudelService {
       this.editorInstance = new StrudelMirror({
         root: this.containerElement,
         initialCode: currentCode,
+        keybindings: getKeybindings() || DEFAULT_KEYBINDINGS,
         transpiler,
         defaultOutput: webaudioOutput,
         getTime: () => getAudioContext().currentTime,
