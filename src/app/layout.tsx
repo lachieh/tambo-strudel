@@ -21,6 +21,17 @@ const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
 });
 
+const themeBootstrapScript = `(function () {
+  try {
+    var theme = localStorage.getItem("strudel-editor-theme");
+    if (theme) {
+      document.documentElement.dataset.theme = theme;
+    }
+  } catch (e) {
+    // Ignore storage access errors (e.g. blocked in some privacy modes)
+  }
+})();`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -28,6 +39,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeBootstrapScript }} />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${firaCode.variable} ${jetbrainsMono.variable} antialiased`}
       >
