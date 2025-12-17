@@ -23,7 +23,7 @@ import {
   StrudelMirrorOptions,
   StrudelReplState,
 } from "@strudel/codemirror";
-import { getDrawContext } from "@strudel/draw";
+import { getDrawContext, setTheme } from "@strudel/draw";
 import type {
   StrudelStorageAdapter,
   ReplSummary,
