@@ -621,7 +621,6 @@ export class StrudelService {
       this.editorInstance = new StrudelMirror({
         root: this.containerElement,
         initialCode: currentCode,
-        keybindings: getKeybindings() || DEFAULT_KEYBINDINGS,
         transpiler,
         defaultOutput: webaudioOutput,
         getTime: () => getAudioContext().currentTime,
@@ -651,6 +650,11 @@ export class StrudelService {
         },
         prebake: this.prebake,
       });
+
+      this.editorInstance.changeSetting(
+        "keybindings",
+        getKeybindings() || DEFAULT_KEYBINDINGS,
+      );
 
       await this.prebake();
 

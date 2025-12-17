@@ -216,6 +216,9 @@ declare module "@strudel/codemirror" {
     setBracketClosingEnabled(enabled: boolean): void;
     /** Enable/disable autocompletion */
     setAutocompletionEnabled(enabled: boolean): void;
+
+    /** Change a single editor setting (e.g. keybindings) */
+    changeSetting(key: string, value: unknown): void;
   }
 
   export function initEditor(options: StrudelMirrorOptions): StrudelMirror;
