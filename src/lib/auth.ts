@@ -34,6 +34,7 @@ async function addUserToResendSegment(email: string | null | undefined) {
 
 let migrationsPromise: Promise<void> | null = null;
 let schemaPatchPromise: Promise<void> | null = null;
+let songShareSchemaPromise: Promise<void> | null = null;
 
 async function ensureMigrations(dialect: PostgresDialect) {
   if (migrationsPromise) return migrationsPromise;
@@ -61,6 +62,31 @@ async function ensureJazzColumns(pool: Pool) {
   return schemaPatchPromise;
 }
 
+async function ensureSongShareSchema(pool: Pool) {
+  if (songShareSchemaPromise) return songShareSchemaPromise;
+
+  songShareSchemaPromise = (async () => {
+    try {
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS song_share (
+          id text PRIMARY KEY,
+          owner_user_id text NOT NULL,
+          code text NOT NULL,
+          title text,
+          created_at bigint NOT NULL
+        );
+      `);
+      await pool.query(
+        `CREATE INDEX IF NOT EXISTS song_share_owner_user_id_idx ON song_share(owner_user_id);`,
+      );
+    } catch (error) {
+      console.error("Failed to ensure song_share schema", error);
+    }
+  })();
+
+  return songShareSchemaPromise;
+}
+
 // Track if database is ready for use
 let dbReadyPromise: Promise<void> | null = null;
 
@@ -75,9 +101,10 @@ function getDatabaseConfig() {
 
     // Run Better Auth migrations once (creates user/session tables)
     // Store the promise so we can await it if needed before auth operations
-    dbReadyPromise = ensureMigrations(dialect).then(() =>
-      ensureJazzColumns(pool),
-    );
+    dbReadyPromise = ensureMigrations(dialect).then(async () => {
+      await ensureJazzColumns(pool);
+      await ensureSongShareSchema(pool);
+    });
 
     return {
       dialect,
