@@ -64,9 +64,11 @@ stack(
 `;
 
 const ALLOWED_KEYBINDINGS = ["codemirror", "vim", "emacs", "vscode"] as const;
+const MAX_EXPORT_CYCLES = 64;
 
 export class StrudelService {
   private static _instance: StrudelService | null = null;
+  private static isDefaultAudioContextSwapInProgress = false;
 
   // Audio engine state
   private isAudioInitialized = false;
@@ -149,6 +151,12 @@ export class StrudelService {
     restoreTo: BaseAudioContext,
     fn: () => Promise<T>,
   ): Promise<T> {
+    if (StrudelService.isDefaultAudioContextSwapInProgress) {
+      throw new Error("Audio context swapping is not reentrant");
+    }
+
+    StrudelService.isDefaultAudioContextSwapInProgress = true;
+
     // Note: this mutates global Strudel/Superdough state and should only be used
     // while real-time audio playback is paused.
     setDefaultAudioContext(ctx);
@@ -156,6 +164,7 @@ export class StrudelService {
       return await fn();
     } finally {
       setDefaultAudioContext(restoreTo);
+      StrudelService.isDefaultAudioContextSwapInProgress = false;
     }
   }
 
@@ -1146,6 +1155,9 @@ const keybindings = getKeybindings();
     }
     if (!Number.isFinite(cycles) || cycles <= 0) {
       throw new Error("Cycles must be a positive number");
+    }
+    if (cycles > MAX_EXPORT_CYCLES) {
+      throw new Error(`Cycles must not exceed ${MAX_EXPORT_CYCLES}`);
     }
 
     if (this.isExporting) {

@@ -12,6 +12,16 @@ export function audioBufferToWavBlob(audioBuffer: AudioBuffer): Blob {
   const sampleRate = audioBuffer.sampleRate;
   const numFrames = audioBuffer.length;
 
+  if (!numChannels || numChannels < 1) {
+    throw new Error("Cannot export WAV: AudioBuffer has no channels");
+  }
+  if (!numFrames) {
+    throw new Error("Cannot export WAV: AudioBuffer has zero length");
+  }
+  if (!Number.isFinite(sampleRate) || sampleRate <= 0) {
+    throw new Error("Cannot export WAV: Invalid sample rate");
+  }
+
   const bytesPerSample = 2;
   const blockAlign = numChannels * bytesPerSample;
   const byteRate = sampleRate * blockAlign;

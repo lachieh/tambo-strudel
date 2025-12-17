@@ -138,6 +138,11 @@ export function ExportModal({ onClose }: ExportModalProps) {
         </div>
 
         <div className="mt-6 flex items-center justify-end gap-2">
+          {isExporting && (
+            <span className="mr-auto text-xs text-muted-foreground">
+              Rendering in progress. Closing is disabled.
+            </span>
+          )}
           <button
             onClick={handleClose}
             disabled={isExporting}
