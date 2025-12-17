@@ -654,13 +654,15 @@ export class StrudelService {
       });
 
       const keybindings = getKeybindings();
-      this.editorInstance.changeSetting(
-        "keybindings",
+      const resolvedKeybindings =
         keybindings &&
-          (ALLOWED_KEYBINDINGS as readonly string[]).includes(keybindings)
+        (ALLOWED_KEYBINDINGS as readonly string[]).includes(keybindings)
           ? keybindings
-          : DEFAULT_KEYBINDINGS,
-      );
+          : DEFAULT_KEYBINDINGS;
+
+      if (typeof this.editorInstance.changeSetting === "function") {
+        this.editorInstance.changeSetting("keybindings", resolvedKeybindings);
+      }
 
       await this.prebake();
 
