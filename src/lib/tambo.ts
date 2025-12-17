@@ -18,7 +18,7 @@ import { validateAndUpdateRepl } from "@/strudel/tools/validateAndUpdateRepl";
 import { listSamples } from "@/strudel/tools/listSamples";
 import { MultiSelectForm, multiSelectFormSchema } from "@/components/tambo/multi-select-form";
 import {
-  VisualizationToggle,
+  VisualizationVisibilityToggle,
   visualizationToggleSchema,
 } from "@/components/tambo/visualization-toggle";
 
@@ -43,10 +43,10 @@ export const components: TamboComponent[] = [
     propsSchema: multiSelectFormSchema,
   },
   {
-    name: "VisualizationToggle",
+    name: "VisualizationVisibilityToggle",
     description:
       "Show/hide Strudel visualization widgets in the editor without modifying code. Users can add `._pianoroll()`, `._waveform()` (alias of `._scope()`), and `._spectrum()` to any pattern line and multiple visualizations can be shown at once; this component only controls visibility.",
-    component: VisualizationToggle,
+    component: VisualizationVisibilityToggle,
     propsSchema: visualizationToggleSchema,
   },
 ];

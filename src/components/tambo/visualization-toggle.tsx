@@ -9,13 +9,13 @@ export const visualizationToggleSchema = z.object({
   title: z
     .string()
     .optional()
-    .describe("Optional title shown above the visualization toggle"),
+    .describe("Optional title shown above the visualization visibility toggle"),
 });
 
 export type VisualizationToggleProps = z.infer<typeof visualizationToggleSchema>;
 
-export function VisualizationToggle({
-  title = "Visualizations",
+export function VisualizationVisibilityToggle({
+  title = "Visualization visibility",
 }: VisualizationToggleProps) {
   const { visualizationsEnabled, setVisualizationsEnabled } = useStrudel();
 
@@ -61,8 +61,9 @@ export function VisualizationToggle({
       </div>
 
       <div className="text-xs text-muted-foreground">
-        This toggle only shows/hides visualization widgets in the editor. It does
-        not change your Strudel code.
+        This toggle only shows/hides visualization widgets in the editor. Add or
+        remove visualizations in your Strudel code (e.g. `._pianoroll()`,
+        `._waveform()`, `._spectrum()`) or ask the AI to do it for you.
       </div>
     </div>
   );
