@@ -592,6 +592,8 @@ export class StrudelService {
     const codemirror = await import("@strudel/codemirror");
     const StrudelMirror = codemirror.StrudelMirror;
 
+    // `registerWidget` is exported by `@strudel/codemirror`, but isn't present in the package's
+    // current type definitions.
     const registerWidget = (codemirror as unknown as {
       registerWidget?: (
         type: string,
@@ -601,6 +603,10 @@ export class StrudelService {
 
     if (registerWidget) {
       this.registerVisualizationWidgets(registerWidget);
+    } else if (process.env.NODE_ENV !== "production") {
+      console.warn(
+        "StrudelService.attach: codemirror.registerWidget is not available; visualizations will be disabled.",
+      );
     }
 
     // If already attached to this container, do nothing

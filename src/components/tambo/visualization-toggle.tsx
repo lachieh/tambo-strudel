@@ -41,9 +41,7 @@ function stripTrailingVisualizationFromLine(
   let currentLine = line;
   let lastType: VisualizationOrOff = null;
 
-  while (true) {
-    let changed = false;
-
+  strip: while (true) {
     for (const candidate of VISUALIZATION_OPTIONS) {
       const callVariants = [candidate.methodCall, ...(candidate.aliases ?? [])];
       for (const call of callVariants) {
@@ -52,12 +50,12 @@ function stripTrailingVisualizationFromLine(
         if (re.test(currentLine)) {
           lastType = candidate.id;
           currentLine = currentLine.replace(re, "").trimEnd();
-          changed = true;
+          continue strip;
         }
       }
     }
 
-    if (!changed) break;
+    break;
   }
 
   return { type: lastType, strippedLine: currentLine };
