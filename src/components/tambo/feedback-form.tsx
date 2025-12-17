@@ -44,7 +44,7 @@ function buildGithubIssueBody({
   issueType: "bug" | "feature" | "question" | "other";
   userEmail?: string | null;
 }): string {
-  const cleanedBody = body.trim();
+  const cleanedBody = body.trim() || "(no additional details provided)";
   const metaLines: string[] = ["<!-- submitted-via: StrudelLM FeedbackForm -->"];
 
   if (issueType) {
@@ -66,11 +66,11 @@ export const FeedbackForm = React.forwardRef<HTMLDivElement, FeedbackFormProps>(
 
     const [draftTitle, setDraftTitle] = useTamboComponentState<string>(
       "draftTitle",
-      "",
+      title ?? "",
     );
     const [draftBody, setDraftBody] = useTamboComponentState<string>(
       "draftBody",
-      "",
+      body ?? "",
     );
     const [hasEdited, setHasEdited] = useTamboComponentState<boolean>(
       "hasEdited",
@@ -125,7 +125,14 @@ export const FeedbackForm = React.forwardRef<HTMLDivElement, FeedbackFormProps>(
       );
 
       return `${config.githubNewIssue}?${params.toString()}`;
-    }, [isSubmitted, draftTitle, draftBody, effectiveIssueType, userEmail]);
+    }, [
+      isSubmitted,
+      draftTitle,
+      draftBody,
+      effectiveIssueType,
+      userEmail,
+      config.githubNewIssue,
+    ]);
 
     const isDisabled = isSubmitted || isSending;
 
@@ -150,6 +157,25 @@ export const FeedbackForm = React.forwardRef<HTMLDivElement, FeedbackFormProps>(
         });
 
         if (!res.ok) {
+          const contentType = res.headers.get("content-type") ?? "";
+          if (contentType.includes("application/json")) {
+            const data: unknown = await res.json().catch(() => null);
+            if (
+              data &&
+              typeof data === "object" &&
+              "error" in data &&
+              typeof (data as { error?: unknown }).error === "string"
+            ) {
+              throw new Error((data as { error: string }).error);
+            }
+          }
+
+          if (res.status >= 500) {
+            throw new Error(
+              "Our servers had an issue saving your feedback. Please try again.",
+            );
+          }
+
           const text = await res.text();
           throw new Error(text || "Request failed");
         }

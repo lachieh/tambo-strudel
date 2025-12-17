@@ -11,7 +11,8 @@ const feedbackRequestSchema = z.object({
   userEmail: z.string().email().nullable().optional(),
 });
 
-function escapeHtml(str: string) {
+function escapeHtml(str: string | null | undefined) {
+  if (str == null) return "";
   return str
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
@@ -25,12 +26,18 @@ export async function POST(req: Request) {
   try {
     payload = await req.json();
   } catch {
-    return new NextResponse("Invalid JSON", { status: 400 });
+    return NextResponse.json({ ok: false, error: "Invalid JSON" }, { status: 400 });
   }
 
   const parsed = feedbackRequestSchema.safeParse(payload);
   if (!parsed.success) {
-    return new NextResponse("Invalid request", { status: 400 });
+    if (!isProduction) {
+      console.warn("Invalid feedback request", parsed.error.flatten());
+    }
+    return NextResponse.json(
+      { ok: false, error: "Invalid request" },
+      { status: 400 },
+    );
   }
 
   const { title, body, issueType, userEmail } = parsed.data;
@@ -41,7 +48,10 @@ export async function POST(req: Request) {
   if (!apiKey) {
     if (isProduction) {
       console.error("Feedback submission failed: RESEND_API_KEY missing");
-      return new NextResponse("Email service not configured", { status: 500 });
+      return NextResponse.json(
+        { ok: false, error: "Email service not configured" },
+        { status: 500 },
+      );
     }
 
     console.log("[feedback]", {
@@ -59,7 +69,8 @@ export async function POST(req: Request) {
   const from =
     process.env.RESEND_EMAIL_FROM || "Strudel LM <noreply@strudellm.com>";
 
-  const subject = `StrudelLM feedback: ${title}`;
+  const normalizedTitle = title.replace(/\s+/g, " ").trim();
+  const subject = `StrudelLM feedback: ${normalizedTitle}`;
 
   const html = `
     <div style="font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;">
@@ -82,6 +93,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, delivered: true });
   } catch (error) {
     console.error("Failed to send feedback email", error);
-    return new NextResponse("Failed to send email", { status: 500 });
+    return NextResponse.json(
+      { ok: false, error: "Failed to send email" },
+      { status: 500 },
+    );
   }
 }
