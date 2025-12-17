@@ -40,6 +40,8 @@ const DEFAULT_CODE = `// Welcome to StrudelLM!
 s("bd sd bd sd")
 `;
 
+const ALLOWED_KEYBINDINGS = ["codemirror", "vim", "emacs", "vscode"] as const;
+
 export class StrudelService {
   private static _instance: StrudelService | null = null;
 
@@ -651,9 +653,13 @@ export class StrudelService {
         prebake: this.prebake,
       });
 
+      const keybindings = getKeybindings();
       this.editorInstance.changeSetting(
         "keybindings",
-        getKeybindings() || DEFAULT_KEYBINDINGS,
+        keybindings &&
+          (ALLOWED_KEYBINDINGS as readonly string[]).includes(keybindings)
+          ? keybindings
+          : DEFAULT_KEYBINDINGS,
       );
 
       await this.prebake();
