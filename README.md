@@ -1,24 +1,20 @@
 # StrudelLM
 
-An AI-powered live coding music environment that combines [Strudel](https://strudel.cc/) with [Tambo AI](https://tambo.co) to generate music patterns through natural language.
+Make music with AI. Just describe what you want to hear.
 
-**Try it**: Ask the AI to "create a funky drum beat", "make an 80s synthwave track", or "build a lo-fi hip hop beat" and watch it generate real-time audio patterns.
+Built by the [Tambo](https://tambo.co) team to show what's possible when you give an AI agent control of a live coding music engine. Powered by [Strudel](https://strudel.cc/).
 
-## What is Strudel?
+**Try it**:
 
-[Strudel](https://strudel.cc/) is a live coding environment for creating music patterns in the browser. It's a JavaScript port of [TidalCycles](https://tidalcycles.org/), a popular live coding language used by musicians worldwide. Strudel lets you write concise code that generates complex rhythmic and melodic patterns.
+```
+make the intro to Stranger Things
+```
+## What Can You Do?
 
-## Features
-
-- **Natural Language to Music** - Describe what you want and the AI writes Strudel code
-- **Genre-Aware** - Understands musical styles from synthwave to drum & bass
-- **Real-Time Playback** - Hear your patterns instantly as they're generated
-- **Iterative Refinement** - Ask for changes like "make it more chill" or "add more reverb"
-- **Dynamic Sample Discovery** - AI can explore available sounds and samples
 
 ## How It Works
 
-This app integrates Strudel with Tambo AI to create an AI assistant that can write and execute Strudel code:
+You chat. The AI writes [Strudel](https://strudel.cc/) code. Music plays instantly.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -26,46 +22,28 @@ This app integrates Strudel with Tambo AI to create an AI assistant that can wri
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │   ┌─────────────┐    ┌─────────────┐    ┌─────────────────┐    │
-│   │   User      │───▶│  Tambo AI   │───▶│  Strudel REPL   │    │
-│   │   Chat      │    │  Assistant  │    │  (Audio Engine) │    │
+│   │   You       │───▶│  Tambo AI   │───▶│    Strudel      │    │
+│   │             │    │   Agent     │    │  (makes sound)  │    │
 │   └─────────────┘    └─────────────┘    └─────────────────┘    │
 │         │                   │                    │              │
-│         │                   │                    │              │
 │         ▼                   ▼                    ▼              │
-│   "Make a drum      Generates valid      Plays audio in        │
-│    beat"            Strudel code         real-time              │
+│   "Make a drum      Writes valid         Plays it              │
+│    beat"            Strudel code         immediately           │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### Architecture
+## Why We Built This
 
-1. **TamboProvider** - Wraps the app and connects to Tambo's AI backend
-2. **StrudelService** - Singleton service managing the Strudel audio engine
-3. **updateRepl Tool** - Tambo tool that validates and executes Strudel code
-4. **listSamples Tool** - Tambo tool for discovering available sounds and samples
-5. **System Prompt** - Comprehensive guide teaching the AI Strudel syntax, genre conventions, and music production techniques
+This is a [Tambo](https://tambo.co) demo. We wanted to show that AI agents aren't just for chatbots and dashboards—they can control creative tools too.
 
-### Key Files
-
-- `src/lib/tambo.ts` - Tambo configuration with tools and system prompt
-- `src/strudel/lib/service.ts` - Strudel audio engine service
-- `src/strudel/tools/validateAndUpdateRepl.ts` - Tool for AI to update the REPL
-- `src/strudel/tools/listSamples.ts` - Tool for discovering available samples
-- `src/strudel/lib/prompt.md` - Comprehensive system prompt teaching AI about Strudel
-
-### The Tool Pattern
-
-Instead of rendering components, this app uses Tambo's **tool system** to let the AI control the Strudel REPL directly:
+Under the hood, it uses Tambo's **tool system** to let the AI write and execute Strudel code in real-time. When the code has errors, Tambo automatically retries until it works.
 
 ```typescript
-// The AI calls this tool to update the music
 export const validateAndUpdateRepl: TamboTool = {
   name: "updateRepl",
   description: "Update the Strudel REPL with new pattern code...",
   tool: async (code: string) => {
-    // Validates code first, throws error if invalid
-    // AI will automatically retry with fixed code
     const result = await service.updateAndPlay(code);
     if (!result.success) {
       throw new Error(`Invalid pattern: ${result.error}`);
@@ -75,48 +53,31 @@ export const validateAndUpdateRepl: TamboTool = {
 };
 ```
 
-## Example Prompts
-
-Try these to get started:
-
-- "Create a house beat with a 909 kick and hi-hats"
-- "Make an 80s synthwave track with arpeggios"
-- "Build a lo-fi hip hop beat with jazzy chords"
-- "Create an ambient soundscape with evolving pads"
-- "Make a drum & bass pattern with rolling bass"
-- "Add some reverb to the snare"
-- "Make it faster and more intense"
-
 ## Get Started
 
-1. Clone this repository
+```bash
+npm install
+npx tambo init    # adds your API key
+npm run dev
+```
 
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
+Open [localhost:3000](http://localhost:3000) and start making music.
 
-3. Set up your Tambo API key:
-   ```bash
-   npx tambo init
-   ```
-   Or rename `example.env.local` to `.env.local` and add your API key from [tambo.co/dashboard](https://tambo.co/dashboard).
+## Prompts to Try
 
-4. Run the development server:
-   ```bash
-   npm run dev
-   ```
-
-5. Open [localhost:3000](http://localhost:3000) and start making music!
+- "Make the intro to Stranger Things"
+- "Create a house beat with a 909 kick"
+- "Build a lo-fi hip hop beat with jazzy chords"
+- "Make an ambient soundscape with evolving pads"
+- "Now make it faster and more intense"
 
 ## Learn More
 
-- [Tambo Documentation](https://docs.tambo.co) - Learn about building AI apps with Tambo
-- [Strudel Documentation](https://strudel.cc/learn) - Learn Strudel pattern syntax
-- [TidalCycles](https://tidalcycles.org/) - The original live coding language
+- [Tambo Docs](https://docs.tambo.co) - Build your own AI agents
+- [Strudel Docs](https://strudel.cc/learn) - Learn the pattern syntax
 
 ## Built With
 
-- [Tambo AI](https://tambo.co) - Generative UI Agent framework
+- [Tambo](https://tambo.co) - AI agent framework
 - [Strudel](https://strudel.cc/) - Live coding music environment
-- [Next.js](https://nextjs.org/) - React framework
+- [Jazz](https://jazz.tools/) - Sync and persistence
