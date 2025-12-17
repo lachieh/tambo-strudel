@@ -11,29 +11,16 @@ const MAX_CODE_LENGTH = 100_000;
 const MAX_TITLE_LENGTH = 200;
 const MAX_REPL_ID_LENGTH = 200;
 const MIN_TIME_BETWEEN_SHARES_MS = 60_000;
-// REPL IDs are client-generated (see `generateReplId()` in `src/hooks/use-strudel-storage.ts`).
-const REPL_ID_PATTERN = /^repl-/;
 
 const createShareSchema = z.object({
-  replId: z
-    .string()
-    .trim()
-    .min(1)
-    .max(MAX_REPL_ID_LENGTH)
-    .regex(REPL_ID_PATTERN),
+  replId: z.string().trim().min(1).max(MAX_REPL_ID_LENGTH),
   replName: z.string().trim().min(1).max(MAX_TITLE_LENGTH).optional(),
   code: z.string().min(1).max(MAX_CODE_LENGTH),
   title: z.string().trim().min(1).max(MAX_TITLE_LENGTH).optional(),
 });
 
 const listSharesQuerySchema = z.object({
-  replId: z
-    .string()
-    .trim()
-    .min(1)
-    .max(MAX_REPL_ID_LENGTH)
-    .regex(REPL_ID_PATTERN)
-    .optional(),
+  replId: z.string().trim().min(1).max(MAX_REPL_ID_LENGTH).optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -56,9 +43,14 @@ export async function POST(req: NextRequest) {
 
   const parsed = createShareSchema.safeParse(body);
   if (!parsed.success) {
+    const issuesForLog = parsed.error.issues.map((issue) => ({
+      path: issue.path,
+      code: issue.code,
+      message: issue.message,
+    }));
     console.warn("Invalid /api/shares payload", {
       userId: session.user.id,
-      issues: parsed.error.issues,
+      issues: issuesForLog,
     });
     return NextResponse.json(
       {
