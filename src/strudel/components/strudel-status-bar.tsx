@@ -267,13 +267,8 @@ export function StrudelStatusBar() {
         </div>
       </div>
 
-      {/* Info Modal */}
-      {showInfoModal && <InfoModal onClose={() => setShowInfoModal(false)} />}
-
-      {/* Export Modal */}
-      {showExportModal && (
-        <ExportModal onClose={() => setShowExportModal(false)} />
-      )}
+      <InfoModal open={showInfoModal} onOpenChange={setShowInfoModal} />
+      <ExportModal open={showExportModal} onOpenChange={setShowExportModal} />
     </>
   );
 }
