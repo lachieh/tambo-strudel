@@ -7,7 +7,7 @@ import { z } from "zod/v3";
 
 // Available themes - must match data-theme values in globals.css
 const themes = [
-  { id: "default", name: "Default", type: "dark" },
+  { id: "default", name: "Tambo Dark", type: "dark" },
   { id: "dracula", name: "Dracula", type: "dark" },
   { id: "tokyo-night", name: "Tokyo Night", type: "dark" },
   { id: "nord", name: "Nord", type: "dark" },
