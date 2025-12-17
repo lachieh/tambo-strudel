@@ -168,7 +168,9 @@ export class StrudelService {
   }): Promise<AudioBuffer> {
     const seconds = cycles / cps;
     if (!Number.isFinite(seconds) || seconds <= 0) {
-      throw new Error("Export failed: invalid duration");
+      throw new Error(
+        "Export failed: duration must be a positive, finite number of seconds. Check that cycles and CPS are set correctly.",
+      );
     }
 
     const numFrames = Math.ceil(seconds * sampleRate);
@@ -178,9 +180,9 @@ export class StrudelService {
       Math.ceil(MAX_EXPORT_SECONDS * sampleRate),
     );
     if (numFrames > maxFrames) {
-      const maxSeconds = Math.round(maxFrames / sampleRate);
+      const maxSeconds = Math.floor(maxFrames / sampleRate);
       throw new Error(
-        `Export too long (${Math.round(seconds)}s). Max is ${maxSeconds}s. Reduce cycles or increase CPS.`,
+        `Export too long (${Math.round(seconds)}s). Max is ${maxSeconds}s. Reduce cycles or increase CPS to shorten the duration.`,
       );
     }
 
