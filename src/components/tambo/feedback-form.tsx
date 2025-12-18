@@ -147,18 +147,6 @@ export const FeedbackForm = React.forwardRef<HTMLDivElement, FeedbackFormProps>(
             }
 
             if (
-              res.status === 400 &&
-              data &&
-              typeof data === "object" &&
-              "code" in data &&
-              (data as { code?: unknown }).code === "INVALID_SESSION_EMAIL"
-            ) {
-              setIsSending(false);
-              setShowAuthModal(true);
-              return;
-            }
-
-            if (
               data &&
               typeof data === "object" &&
               "message" in data &&

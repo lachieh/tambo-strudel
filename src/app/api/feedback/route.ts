@@ -83,24 +83,11 @@ export async function POST(req: Request) {
   const { title, body } = parsed.data;
   const userEmail = session.user.email;
   const userEmailParse = z.string().email().safeParse(userEmail);
-  if (!userEmailParse.success) {
-    if (!isProduction) {
-      console.warn("Authenticated user has invalid email in session", { userEmail });
-    }
-    return NextResponse.json(
-      {
-        ok: false,
-        error: "Account email is invalid",
-        code: "INVALID_SESSION_EMAIL",
-        message:
-          "Your account email is missing or invalid. Please sign in again or open a GitHub issue instead.",
-      },
-      { status: 400 },
-    );
+  if (!userEmailParse.success && !isProduction) {
+    console.warn("Authenticated user has invalid email in session", { userEmail });
   }
 
-  const safeUserEmail = userEmailParse.data;
-  const safeReplyTo = safeUserEmail;
+  const safeReplyTo = userEmailParse.success ? userEmailParse.data : undefined;
 
   // In development (and in production without RESEND_API_KEY), log feedback rather than fail hard.
   // This keeps local dev usable without requiring email credentials.
@@ -114,7 +101,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const redactedUserEmail = redactEmail(safeUserEmail);
+    const redactedUserEmail = redactEmail(userEmail);
 
     console.log("[feedback]", {
       title,
@@ -138,7 +125,7 @@ export async function POST(req: Request) {
       <h2>${escapeHtml(title)}</h2>
       <p style="white-space: pre-wrap;">${escapeHtml(body)}</p>
       <hr />
-      <p><strong>User email:</strong> ${escapeHtml(safeUserEmail)}</p>
+      <p><strong>User email:</strong> ${escapeHtml(userEmail)}</p>
     </div>
   `;
 
