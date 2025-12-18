@@ -86,8 +86,10 @@ export async function POST(req: Request) {
         ok: false,
         error: "Account email is invalid",
         code: "INVALID_SESSION_EMAIL",
+        message:
+          "Your account email is missing or invalid. Please sign in again or open a GitHub issue instead.",
       },
-      { status: 500 },
+      { status: 400 },
     );
   }
 

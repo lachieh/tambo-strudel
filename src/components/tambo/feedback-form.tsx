@@ -280,11 +280,12 @@ export const FeedbackForm = React.forwardRef<HTMLDivElement, FeedbackFormProps>(
                       : "Submit feedback"}
                 </button>
 
-                {isSubmitted && githubIssueUrl && (
+                {githubIssueUrl && (isSubmitted || submitError) && (
                   <>
                     <p className="text-xs text-muted-foreground">
-                      Want this fixed faster? Open a GitHub issue so we can track
-                      it.
+                      {isSubmitted
+                        ? "Want this fixed faster? Open a GitHub issue so we can track it."
+                        : "Having trouble sending? Open a GitHub issue so we can track it."}
                     </p>
                     <a
                       href={githubIssueUrl}
