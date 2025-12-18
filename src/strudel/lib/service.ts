@@ -174,7 +174,7 @@ export class StrudelService {
    * Clear the revert notification
    */
   clearRevertNotification = (): void => {
-    this.notifyStateChange({ revertNotification: null } as StrudelReplState);
+    this.notifyStateChange({ revertNotification: null });
   };
 
   // ============================================
@@ -454,7 +454,7 @@ export class StrudelService {
     };
   };
 
-  private notifyStateChange(state: StrudelReplState): void {
+  private notifyStateChange(state: Partial<StrudelReplState>): void {
     const hasEvalError = Object.prototype.hasOwnProperty.call(state, "evalError");
     const hasSchedulerError = Object.prototype.hasOwnProperty.call(
       state,
@@ -623,7 +623,7 @@ export class StrudelService {
     this.notifyStateChange({
       schedulerError: normalizedError,
       missingSample,
-    } as StrudelReplState);
+    });
   };
 
   private isSampleErrorMessage(message: string): boolean {
@@ -1203,7 +1203,7 @@ const keybindings = getKeybindings();
           id: this.revertNotificationId,
           message: "That update didn't play. Reverted to the last working pattern.",
         },
-      } as StrudelReplState);
+      });
     }
 
     // Restore the previous code

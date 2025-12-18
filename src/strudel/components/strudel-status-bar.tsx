@@ -38,18 +38,20 @@ function categorizeError(error: string | Error): string {
 
 type ContextAttachmentApi = ReturnType<typeof useTamboContextAttachment>;
 
+type StrudelErrorAttachmentMetadata = {
+  attachmentKey: string;
+  errorType: string;
+  errorMessage: string | undefined;
+  missingSample: string | null;
+  code: string;
+};
+
 function replaceStrudelErrorContextAttachment(
   api: Pick<
     ContextAttachmentApi,
     "attachments" | "addContextAttachment" | "removeContextAttachment"
   >,
-  metadata: {
-    attachmentKey: string;
-    errorType: string;
-    errorMessage: string | undefined;
-    missingSample: string | null;
-    code: string;
-  },
+  metadata: StrudelErrorAttachmentMetadata,
 ): void {
   const existingErrors = api.attachments.filter(
     (a) => a.metadata?.kind === "strudel_error",
