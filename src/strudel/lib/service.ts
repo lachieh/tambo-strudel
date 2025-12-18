@@ -37,7 +37,7 @@ const DEFAULT_CODE = `// Welcome to StrudelLM!
 // Write patterns here or ask the AI for help
 
 // Example: Synth line with scope + gain slider, and a pianoroll
-// slider(initial, min, max, step) controls gain via a UI slider
+// slider(initial, min, max, step) returns a value you can pass to .gain
 n("0 2 4 7")
   .s("sawtooth")
   .gain(slider(0.4, 0, 1, 0.01))
