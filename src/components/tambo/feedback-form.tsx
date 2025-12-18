@@ -133,6 +133,18 @@ export const FeedbackForm = React.forwardRef<HTMLDivElement, FeedbackFormProps>(
           const contentType = res.headers.get("content-type") ?? "";
           if (contentType.includes("application/json")) {
             const data: unknown = await res.json().catch(() => null);
+
+            if (
+              res.status === 401 &&
+              data &&
+              typeof data === "object" &&
+              "code" in data &&
+              (data as { code?: unknown }).code === "AUTH_REQUIRED_FOR_FEEDBACK"
+            ) {
+              setShowAuthModal(true);
+              return;
+            }
+
             if (
               data &&
               typeof data === "object" &&
