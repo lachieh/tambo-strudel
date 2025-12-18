@@ -90,7 +90,7 @@ export const FeedbackForm = React.forwardRef<HTMLDivElement, FeedbackFormProps>(
       const cleanedTitle = (draftTitle ?? "").trim();
       const cleanedBody = (draftBody ?? "").trim();
 
-      if (!cleanedBody) return null;
+      if (cleanedBody.length < 10) return null;
 
       const params = new URLSearchParams();
       params.set("title", cleanedTitle || "Feedback from StrudelLM");
@@ -243,6 +243,7 @@ export const FeedbackForm = React.forwardRef<HTMLDivElement, FeedbackFormProps>(
                 isDisabled && "opacity-70",
               )}
               placeholder="Short summary (5–10 words)"
+              minLength={3}
               maxLength={80}
               required
             />
@@ -266,6 +267,7 @@ export const FeedbackForm = React.forwardRef<HTMLDivElement, FeedbackFormProps>(
                 isDisabled && "opacity-70",
               )}
               placeholder="What were you trying to do? What did you expect? What happened instead?"
+              minLength={10}
               maxLength={4000}
               required
             />
@@ -301,12 +303,14 @@ export const FeedbackForm = React.forwardRef<HTMLDivElement, FeedbackFormProps>(
                       : "Submit feedback"}
                 </button>
 
-                {githubIssueUrl && (isSubmitted || submitError) && (
+                {githubIssueUrl && (
                   <>
                     <p className="text-xs text-muted-foreground">
                       {isSubmitted
                         ? "Want this fixed faster? Open a GitHub issue so we can track it."
-                        : "Having trouble sending? Open a GitHub issue so we can track it."}
+                        : submitError
+                          ? "Having trouble sending? Open a GitHub issue so we can track it."
+                          : "Prefer GitHub? Open an issue so we can track this."}
                     </p>
                     <a
                       href={githubIssueUrl}
