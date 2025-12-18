@@ -36,6 +36,44 @@ function categorizeError(error: string | Error): string {
   return "runtime_error";
 }
 
+type ContextAttachmentApi = ReturnType<typeof useTamboContextAttachment>;
+
+function replaceStrudelErrorContextAttachment(
+  api: Pick<
+    ContextAttachmentApi,
+    "attachments" | "addContextAttachment" | "removeContextAttachment"
+  >,
+  metadata: {
+    attachmentKey: string;
+    errorType: string;
+    errorMessage: string | undefined;
+    missingSample: string | null;
+    code: string;
+  },
+): void {
+  const existingErrors = api.attachments.filter(
+    (a) => a.metadata?.kind === "strudel_error",
+  );
+  const alreadyAttached = existingErrors.some(
+    (a) => a.metadata?.attachmentKey === metadata.attachmentKey,
+  );
+
+  if (alreadyAttached) return;
+
+  for (const a of existingErrors) {
+    api.removeContextAttachment(a.id);
+  }
+
+  api.addContextAttachment({
+    name: "Strudel Error",
+    icon: <AlertCircle className="w-3 h-3" />,
+    metadata: {
+      kind: "strudel_error",
+      ...metadata,
+    },
+  });
+}
+
 export function StrudelStatusBar() {
   const [showInfoModal, setShowInfoModal] = React.useState(false);
   const {
@@ -75,31 +113,16 @@ export function StrudelStatusBar() {
         : "unknown";
 
     const attachmentKey = JSON.stringify({ missingSample, errorMessage, code });
-    const existingErrors = attachments.filter(
-      (a) => a.metadata?.kind === "strudel_error",
+    replaceStrudelErrorContextAttachment(
+      { attachments, addContextAttachment, removeContextAttachment },
+      {
+        attachmentKey,
+        errorType,
+        errorMessage,
+        missingSample,
+        code,
+      },
     );
-    const alreadyAttached = existingErrors.some(
-      (a) => a.metadata?.attachmentKey === attachmentKey,
-    );
-
-    if (!alreadyAttached) {
-      for (const a of existingErrors) {
-        removeContextAttachment(a.id);
-      }
-
-      addContextAttachment({
-        name: "Strudel Error",
-        icon: <AlertCircle className="w-3 h-3" />,
-        metadata: {
-          kind: "strudel_error",
-          attachmentKey,
-          errorType,
-          errorMessage,
-          missingSample,
-          code,
-        },
-      });
-    }
 
     // If input is empty, add default message
     if (!value?.trim()) {

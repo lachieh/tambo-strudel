@@ -464,6 +464,10 @@ export class StrudelService {
       state,
       "missingSample",
     );
+    const hasRevertNotification = Object.prototype.hasOwnProperty.call(
+      state,
+      "revertNotification",
+    );
 
     const mergedState: StrudelReplState = {
       ...this._state,
@@ -476,6 +480,9 @@ export class StrudelService {
       missingSample: hasMissingSample
         ? state.missingSample
         : this._state.missingSample,
+      revertNotification: hasRevertNotification
+        ? state.revertNotification
+        : this._state.revertNotification,
     };
 
     this._state = mergedState;
@@ -613,12 +620,10 @@ export class StrudelService {
       ? this.extractMissingSampleName(normalizedMessage)
       : null;
 
-    this._state = {
-      ...this._state,
+    this.notifyStateChange({
       schedulerError: normalizedError,
       missingSample,
-    };
-    this.notifyStateChange(this._state);
+    } as StrudelReplState);
   };
 
   private isSampleErrorMessage(message: string): boolean {
@@ -959,6 +964,7 @@ const keybindings = getKeybindings();
       this.captureSchedulerError(error);
       this.unregisterGlobalErrorHandlers();
       this.removeConsoleErrorFilter();
+      throw error;
     }
   };
 

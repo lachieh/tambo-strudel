@@ -120,7 +120,9 @@ export function StrudelProvider({ children }: { children: React.ReactNode }) {
     (code: string, shouldPlay: boolean = false) => {
       strudelService.setCode(code);
       if (shouldPlay) {
-        strudelService.play();
+        strudelService.play().catch((error) => {
+          console.warn("[StrudelProvider] Play error caught:", error);
+        });
       }
     },
     [],
