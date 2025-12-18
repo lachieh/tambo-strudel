@@ -40,7 +40,7 @@ const DEFAULT_CODE = `// Welcome to StrudelLM!
 // slider(initial, min, max, step) controls gain via a UI slider
 n("0 2 4 7")
   .s("sawtooth")
-  .gain(slider(0.4, 0, 1, 0.01)) // gain slider: 0..1
+  .gain(slider(0.4, 0, 1, 0.01))
   ._scope({ height: 120, scale: 0.5 })
 
 // Add a pianoroll visualization on a simple pattern
