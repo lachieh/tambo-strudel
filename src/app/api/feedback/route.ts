@@ -21,9 +21,9 @@ function escapeHtml(str: string | null | undefined) {
 }
 
 function redactEmail(email: string): string {
-  const [local, domain] = email.split("@");
-  if (!local || !domain) return "(invalid or missing)";
-  return `${local[0] ?? "*"}***@${domain}`;
+  const atIndex = email.lastIndexOf("@");
+  if (atIndex <= 0) return "(invalid or missing)";
+  return "***@***";
 }
 
 export async function POST(req: Request) {
@@ -49,6 +49,8 @@ export async function POST(req: Request) {
     );
   }
 
+  // NOTE: This endpoint is intentionally restricted to authenticated end-users.
+  // Anonymous feedback is handled via GitHub issues in the UI.
   if (!session?.user?.email) {
     return NextResponse.json(
       {
@@ -88,6 +90,9 @@ export async function POST(req: Request) {
   }
 
   const safeReplyTo = userEmailParse.success ? userEmailParse.data : undefined;
+  const displayUserEmail = userEmailParse.success
+    ? userEmailParse.data
+    : "(invalid or missing)";
 
   // In development (and in production without RESEND_API_KEY), log feedback rather than fail hard.
   // This keeps local dev usable without requiring email credentials.
@@ -101,7 +106,9 @@ export async function POST(req: Request) {
       );
     }
 
-    const redactedUserEmail = redactEmail(userEmail);
+    const redactedUserEmail = userEmailParse.success
+      ? redactEmail(userEmailParse.data)
+      : "(invalid or missing)";
 
     console.log("[feedback]", {
       title,
@@ -125,7 +132,7 @@ export async function POST(req: Request) {
       <h2>${escapeHtml(title)}</h2>
       <p style="white-space: pre-wrap;">${escapeHtml(body)}</p>
       <hr />
-      <p><strong>User email:</strong> ${escapeHtml(userEmail)}</p>
+      <p><strong>User email:</strong> ${escapeHtml(displayUserEmail)}</p>
     </div>
   `;
 
