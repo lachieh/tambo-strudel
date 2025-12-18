@@ -36,8 +36,14 @@ type CodeChangeCallback = (state: StrudelReplState) => void;
 const DEFAULT_CODE = `// Welcome to StrudelLM!
 // Write patterns here or ask the AI for help
 
-// Example: A simple drum pattern
-s("bd sd bd sd")
+// Example: Synth line with scope + gain slider, and a pianoroll
+n("0 2 4 7")
+  .s("sawtooth")
+  .gain(0.4)
+  ._scope({ height: 120, scale: 0.5 })
+
+// Add a pianoroll visualization on a simple pattern
+s("bd sd bd sd")._pianoroll({ fold: 1 })
 `;
 
 const ALLOWED_KEYBINDINGS = ["codemirror", "vim", "emacs", "vscode"] as const;
@@ -561,6 +567,11 @@ export class StrudelService {
       "Loaded core module",
       20,
     );
+    const codemirror = loadAndReport(
+      import("@strudel/codemirror"),
+      "Loaded codemirror helpers",
+      10,
+    );
     const draw = loadAndReport(
       import("@strudel/draw"),
       "Loaded draw module",
@@ -581,7 +592,7 @@ export class StrudelService {
       "Loaded webaudio module",
       20,
     );
-    const loadModules = evalScope(core, draw, mini, tonal, webAudio);
+    const loadModules = evalScope(core, codemirror, draw, mini, tonal, webAudio);
 
     const sampleList = prebake().map(([name, sample]) => {
       return loadAndReport(sample, `Loaded sample: ${name}`, 30);
@@ -681,6 +692,7 @@ export class StrudelService {
           this.setCode(savedCode);
         }
       }
+
     } finally {
       this.isInitializing = false;
     }
