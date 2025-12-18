@@ -90,7 +90,7 @@ export const FeedbackForm = React.forwardRef<HTMLDivElement, FeedbackFormProps>(
       const cleanedTitle = (draftTitle ?? "").trim();
       const cleanedBody = (draftBody ?? "").trim();
 
-      if (!cleanedTitle && !cleanedBody) return null;
+      if (!cleanedBody) return null;
 
       const params = new URLSearchParams();
       params.set("title", cleanedTitle || "Feedback from StrudelLM");
@@ -141,6 +141,7 @@ export const FeedbackForm = React.forwardRef<HTMLDivElement, FeedbackFormProps>(
               "code" in data &&
               (data as { code?: unknown }).code === "AUTH_REQUIRED_FOR_FEEDBACK"
             ) {
+              setIsSending(false);
               setShowAuthModal(true);
               return;
             }
