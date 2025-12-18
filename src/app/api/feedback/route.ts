@@ -20,11 +20,28 @@ function escapeHtml(str: string | null | undefined) {
     .replaceAll("'", "&#039;");
 }
 
+function redactEmail(email: string): string {
+  const [local, domain] = email.split("@");
+  if (!local || !domain) return "(invalid or missing)";
+  return `${local[0] ?? "*"}***@${domain}`;
+}
+
 export async function POST(req: Request) {
-  const session = await auth.api.getSession({
-    headers: req.headers,
-    asResponse: false,
-  });
+  let session: Awaited<ReturnType<typeof auth.api.getSession>> | null = null;
+  try {
+    session = await auth.api.getSession({
+      headers: req.headers,
+      asResponse: false,
+    });
+  } catch (error) {
+    if (!isProduction) {
+      console.error("Failed to fetch auth session for feedback", error);
+    }
+    return NextResponse.json(
+      { ok: false, error: "Auth service unavailable", code: "AUTH_SESSION_ERROR" },
+      { status: 500 },
+    );
+  }
 
   if (!session?.user?.email) {
     return NextResponse.json(
@@ -80,7 +97,7 @@ export async function POST(req: Request) {
     }
 
     const redactedUserEmail = safeUserEmail
-      ? safeUserEmail.replace(/(^.).*(@.*$)/, "$1***$2")
+      ? redactEmail(safeUserEmail)
       : "(invalid or missing)";
 
     console.log("[feedback]", {
