@@ -179,6 +179,13 @@ export function StrudelProvider({ children }: { children: React.ReactNode }) {
       })
       .catch((error) => {
         if (attachOperationIdRef.current !== operationId) return;
+
+        setState("error");
+        setMessage(
+          strudelService.isReady
+            ? "Failed to attach Strudel editor"
+            : "Failed to initialize Strudel",
+        );
         console.warn("[StrudelProvider] Attach error caught:", error);
       });
   }, []);
