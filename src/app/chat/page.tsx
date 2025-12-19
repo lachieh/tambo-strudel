@@ -152,18 +152,6 @@ const bestEffortNonSecureId = (): string => {
     }
   }
 
-  try {
-    if (globalThis.crypto?.getRandomValues) {
-      const bytes = new Uint8Array(16);
-      globalThis.crypto.getRandomValues(bytes);
-      return Array.from(bytes)
-        .map((b) => b.toString(16).padStart(2, "0"))
-        .join("");
-    }
-  } catch {
-    // Fall through
-  }
-
   nonSecureCounter = (nonSecureCounter + 1) % Number.MAX_SAFE_INTEGER;
   return `${Date.now()}-${nonSecureCounter}-${Math.random().toString(16).slice(2)}`;
 };
@@ -243,6 +231,7 @@ function AppContent() {
   const [threadInitialized, setThreadInitialized] = React.useState(false);
   const [replInitialized, setReplInitialized] = React.useState(false);
   const [showBetaModal, setShowBetaModal] = React.useState(false);
+  const lastContextKeyRef = React.useRef<string | null>(null);
   const contextKeyState = useContextKey();
   const canUseContextKey = contextKeyState.isReady;
   const { isPending } = useLoadingState();
@@ -273,6 +262,8 @@ function AppContent() {
 
   React.useEffect(() => {
     if (!contextKeyState.isReady) return;
+    if (lastContextKeyRef.current === contextKeyState.contextKey) return;
+    lastContextKeyRef.current = contextKeyState.contextKey;
     setThreadInitialized(false);
   }, [contextKeyState.isReady, contextKeyState.contextKey]);
 
