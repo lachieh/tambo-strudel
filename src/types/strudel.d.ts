@@ -28,6 +28,20 @@ declare module "@strudel/webaudio" {
     targetTime?: number,
   ): void;
 
+  /** Create a WebAudio REPL instance for evaluating Strudel code */
+  export function webaudioRepl(options?: {
+    getTime?: () => number;
+    transpiler?: (code: string) => string;
+  }): {
+    evaluate: (code: string, autoplay: boolean) => Promise<unknown>;
+    state?: {
+      evalError?: unknown;
+    };
+    scheduler?: {
+      cps?: unknown;
+    };
+  };
+
   /** Get the current audio context */
   export function getAudioContext(): AudioContext;
 
