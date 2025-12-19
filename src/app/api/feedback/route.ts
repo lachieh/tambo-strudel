@@ -27,6 +27,24 @@ function redactEmail(email: string): string {
 }
 
 export async function POST(req: Request) {
+  let payload: unknown;
+  try {
+    payload = await req.json();
+  } catch {
+    return NextResponse.json({ ok: false, error: "Invalid JSON" }, { status: 400 });
+  }
+
+  const parsed = feedbackRequestSchema.safeParse(payload);
+  if (!parsed.success) {
+    if (!isProduction) {
+      console.warn("Invalid feedback request", parsed.error.flatten());
+    }
+    return NextResponse.json(
+      { ok: false, error: "Invalid request" },
+      { status: 400 },
+    );
+  }
+
   let session: Awaited<ReturnType<typeof auth.api.getSession>> | null = null;
   try {
     session = await auth.api.getSession({
@@ -61,24 +79,6 @@ export async function POST(req: Request) {
           "You must be signed in to send feedback via email. Please sign in or open a GitHub issue.",
       },
       { status: 401 },
-    );
-  }
-
-  let payload: unknown;
-  try {
-    payload = await req.json();
-  } catch {
-    return NextResponse.json({ ok: false, error: "Invalid JSON" }, { status: 400 });
-  }
-
-  const parsed = feedbackRequestSchema.safeParse(payload);
-  if (!parsed.success) {
-    if (!isProduction) {
-      console.warn("Invalid feedback request", parsed.error.flatten());
-    }
-    return NextResponse.json(
-      { ok: false, error: "Invalid request" },
-      { status: 400 },
     );
   }
 
