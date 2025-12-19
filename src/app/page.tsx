@@ -63,7 +63,14 @@ export default function LandingPage() {
 
           {/* Video Demo */}
           <div className="relative mb-10 rounded-2xl overflow-hidden border border-border/50 shadow-2xl shadow-success/5 bg-black/50 backdrop-blur-sm">
-            <video className="w-full aspect-video" autoPlay loop muted playsInline>
+            <video
+              className="w-full aspect-video"
+              autoPlay
+              loop
+              muted
+              playsInline
+              aria-label="Demo of StrudelLM live coding music with AI assistance"
+            >
               <source
                 src="https://github.com/user-attachments/assets/6f88f3b3-4be2-41fe-b77e-199213811278"
                 type="video/mp4"
