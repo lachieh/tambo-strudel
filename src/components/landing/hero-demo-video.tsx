@@ -14,7 +14,7 @@ export function HeroDemoVideo() {
       if (video) {
         video.muted = nextMuted;
         if (!nextMuted) {
-          void video.play();
+          void video.play().catch(() => undefined);
         }
       }
 
@@ -29,10 +29,11 @@ export function HeroDemoVideo() {
         ref={videoRef}
         className="w-full h-full object-cover"
         autoPlay
-        loop
+        loop={isMuted}
         muted={isMuted}
         playsInline
         preload="metadata"
+        poster="/videos/hero-demo-poster.jpg"
         aria-label="StrudelLM live coding music demo"
       >
         <source src="/videos/hero-demo.mp4" type="video/mp4" />
