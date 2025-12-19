@@ -197,12 +197,12 @@ export class StrudelService {
   }
 
   private static async renderPatternToOfflineAudioBuffer({
-    pattern,
+    getPattern,
     cycles,
     cps,
     sampleRate,
   }: {
-    pattern: unknown;
+    getPattern: () => Promise<unknown>;
     cycles: number;
     cps: number;
     sampleRate: number;
@@ -236,9 +236,13 @@ export class StrudelService {
 
     const offlineContext = new OfflineAudioContext(2, numFrames, sampleRate);
 
-    return await StrudelService.withDefaultAudioContext(
-      offlineContext,
-      async () => {
+    return await StrudelService.withDefaultAudioContext(offlineContext, async () => {
+      const pattern = await getPattern();
+
+      if (!pattern) {
+        throw new Error("Evaluation failed");
+      }
+
         const queryArc = (pattern as {
           queryArc?: (begin: number, end: number, context: unknown) => unknown[];
         }).queryArc;
@@ -268,9 +272,8 @@ export class StrudelService {
           offlineWebaudioOutput(hap, 0, durationSeconds, cps, targetTime);
         }
 
-        return await offlineContext.startRendering();
-      },
-    );
+      return await offlineContext.startRendering();
+    });
   }
 
   /**
@@ -1206,25 +1209,34 @@ export class StrudelService {
       this.editorInstance?.repl.stop();
     }
 
-    const activeContext = getAudioContext();
     try {
-      const pattern = await this.editorInstance?.repl.evaluate(code, false);
-      if (!pattern) {
-        const error = this.editorInstance?.repl.state.evalError;
-        if (error instanceof Error) {
-          throw error;
-        }
-        throw new Error(typeof error === "string" ? error : "Evaluation failed");
-      }
-
       const cps = this.cps;
+      const sampleRate = getAudioContext().sampleRate;
 
       const renderedBuffer = await StrudelService.renderPatternToOfflineAudioBuffer(
         {
-          pattern,
+          getPattern: async () => {
+            const repl = webaudioRepl({
+              getTime: () => 0,
+              transpiler,
+            });
+
+            const pattern = await repl.evaluate(code, false);
+            if (!pattern) {
+              const error = repl.state?.evalError;
+              if (error instanceof Error) {
+                throw error;
+              }
+              throw new Error(
+                typeof error === "string" ? error : "Evaluation failed",
+              );
+            }
+
+            return pattern;
+          },
           cycles,
           cps,
-          sampleRate: activeContext.sampleRate,
+          sampleRate,
         },
       );
 
