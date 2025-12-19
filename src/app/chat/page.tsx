@@ -124,7 +124,8 @@ const safeLocalStorageSetItem = (key: string, value: string): void => {
   }
 };
 
-// Best-effort ID generation. Not suitable for auth/session/security tokens.
+// Best-effort opaque ID generation.
+// Uses crypto APIs when available, but must never be used for auth/session/security tokens.
 // Return value is an opaque string; format may vary between UUID-like and raw hex.
 let nonSecureCounter = 0;
 const bestEffortNonSecureId = (): string => {
@@ -171,6 +172,7 @@ const getOrCreateAnonymousContextKey = (): string | null => {
 // Hook to get a stable context key for Tambo thread scoping.
 // - Authenticated users: Better Auth user id (stable across devices)
 // - Anonymous users: persistent per-browser id stored in localStorage
+// Changing this value changes which threads are visible in the UI.
 // NOTE: This is not an auth token. Do not use this value for permissions or other security decisions.
 // This hook assumes it only runs in the browser (client components).
 function useContextKey():
@@ -255,6 +257,8 @@ function AppContent() {
     if (!contextKeyState.isReady) return;
     if (lastContextKeyRef.current === contextKeyState.contextKey) return;
     lastContextKeyRef.current = contextKeyState.contextKey;
+    // Context key changes imply a user identity change (login/logout). Reset per-thread initialization
+    // so we re-select/create threads under the new scope.
     setThreadInitialized(false);
   }, [contextKeyState.isReady, contextKeyState.contextKey]);
 
@@ -432,6 +436,7 @@ function TamboAuthedProvider({
     <TamboProvider
       tamboUrl={process.env.NEXT_PUBLIC_TAMBO_URL}
       apiKey={apiKey}
+      // Better Auth session token, exchanged by Tambo for a Tambo session token.
       userToken={sessionData?.session?.token}
       tools={tools}
       components={components}
