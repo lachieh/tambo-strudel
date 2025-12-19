@@ -15,6 +15,8 @@ import { ExternalLink } from "lucide-react";
 import * as React from "react";
 import { z } from "zod/v3";
 
+let didWarnInvalidGithubNewIssueBase = false;
+
 export const feedbackFormSchema = z.object({
   title: z
     .string()
@@ -49,15 +51,34 @@ function getSafeGithubNewIssueBase(raw: string): string | null {
   try {
     const url = new URL(raw);
 
-    if (url.protocol !== "https:") return null;
-    if (url.hostname !== "github.com") return null;
+    if (url.protocol !== "https:" || url.hostname !== "github.com") {
+      if (process.env.NODE_ENV !== "production" && !didWarnInvalidGithubNewIssueBase) {
+        didWarnInvalidGithubNewIssueBase = true;
+        console.warn("Invalid config.githubNewIssue; must be https://github.com", {
+          raw,
+        });
+      }
+      return null;
+    }
 
     url.hash = "";
     url.search = "";
     return url.toString().replace(/\?$/, "");
   } catch {
+    if (process.env.NODE_ENV !== "production" && !didWarnInvalidGithubNewIssueBase) {
+      didWarnInvalidGithubNewIssueBase = true;
+      console.warn("Invalid config.githubNewIssue; could not parse URL", { raw });
+    }
     return null;
   }
+}
+
+function getDeliveredFlag(data: unknown): boolean | null {
+  if (!data || typeof data !== "object") return null;
+  if (!("delivered" in data)) return null;
+
+  const delivered = (data as { delivered?: unknown }).delivered;
+  return typeof delivered === "boolean" ? delivered : null;
 }
 
 export const FeedbackForm = React.forwardRef<HTMLDivElement, FeedbackFormProps>(
@@ -206,14 +227,8 @@ export const FeedbackForm = React.forwardRef<HTMLDivElement, FeedbackFormProps>(
         const contentType = res.headers.get("content-type") ?? "";
         if (contentType.includes("application/json")) {
           const data: unknown = await res.json().catch(() => null);
-          if (
-            data &&
-            typeof data === "object" &&
-            "delivered" in data &&
-            typeof (data as { delivered?: unknown }).delivered === "boolean"
-          ) {
-            setWasDelivered((data as { delivered: boolean }).delivered);
-          }
+          const delivered = getDeliveredFlag(data);
+          if (delivered != null) setWasDelivered(delivered);
         }
 
         setIsSubmitted(true);
