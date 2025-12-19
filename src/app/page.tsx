@@ -61,6 +61,16 @@ export default function LandingPage() {
             Powered by Strudel and AI.
           </p>
 
+          {/* Video Demo */}
+          <div className="relative mb-10 rounded-2xl overflow-hidden border border-border/50 shadow-2xl shadow-success/5 bg-black/50 backdrop-blur-sm">
+            <video className="w-full aspect-video" autoPlay loop muted playsInline>
+              <source
+                src="https://github.com/user-attachments/assets/6f88f3b3-4be2-41fe-b77e-199213811278"
+                type="video/mp4"
+              />
+            </video>
+          </div>
+
           {/* CTA Button */}
           <Link
             href="/chat"
@@ -84,33 +94,6 @@ export default function LandingPage() {
           </Link>
         </div>
       </main>
-
-      {/* Video Section - uncomment when video asset is ready
-      <section className="px-6 py-16 bg-muted/50">
-        <div className="max-w-4xl mx-auto">
-          <h2 className="text-2xl md:text-3xl font-semibold text-center mb-8">
-            See it in action
-          </h2>
-
-          <div className="relative aspect-video bg-muted rounded-xl overflow-hidden border border-border">
-            <video
-              className="w-full h-full object-cover"
-              controls
-              playsInline
-              preload="metadata"
-            >
-              <source
-                src="https://github.com/user-attachments/assets/YOUR_VIDEO.mp4"
-                type="video/mp4"
-              />
-              <p className="absolute inset-0 flex items-center justify-center text-muted-foreground">
-                Your browser does not support the video tag.
-              </p>
-            </video>
-          </div>
-        </div>
-      </section>
-      */}
 
       {/* Features Section */}
       <section className="px-6 py-16">
