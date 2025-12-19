@@ -6,7 +6,7 @@ import { Loader2 } from "lucide-react";
 export function StrudelRepl() {
   const ref = React.useRef<HTMLDivElement>(null);
 
-  const { setRoot, isAiUpdating } = useStrudel();
+  const { setRoot, isToolUpdatingRepl } = useStrudel();
 
   React.useEffect(() => {
     if (ref.current) {
@@ -22,11 +22,12 @@ export function StrudelRepl() {
         className="flex-1 min-h-0 flex flex-col justify-stretch items-stretch bg-background text-foreground *:h-full"
       />
 
-      {/* Subtle AI updating indicator in corner */}
-      {isAiUpdating && (
-        <div className="absolute top-2 right-2 flex items-center gap-1.5 px-2 py-1 rounded-md bg-muted/80 text-muted-foreground text-xs z-10">
-          <Loader2 className="h-3 w-3 animate-spin" />
-          <span>AI updating...</span>
+      {isToolUpdatingRepl && (
+        <div className="absolute inset-0 z-20 bg-background/40 backdrop-blur-[1px] flex items-center justify-center">
+          <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-muted/90 text-muted-foreground text-sm">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>AI updating...</span>
+          </div>
         </div>
       )}
     </div>

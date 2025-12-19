@@ -162,35 +162,41 @@ export const validateAndUpdateRepl: TamboTool = {
   tool: async (
     code: string,
   ): Promise<{ success: boolean; code?: string; error?: string }> => {
-    await service.init();
+    service.setToolUpdatingRepl(true);
 
-    // First check for missing samples before evaluating
-    const sampleNames = extractSampleNames(code);
-    if (sampleNames.length > 0) {
-      const { missing, suggestions } = await validateSamples(sampleNames);
-      if (missing.length > 0) {
-        // Build error message with suggestions
-        let errorMsg = `Error: Unknown sample(s): ${missing.join(", ")}.`;
+    try {
+      await service.init();
 
-        // Add suggestions for each missing sample
-        for (const [sample, similar] of suggestions) {
-          if (similar.length > 0) {
-            errorMsg += `\n  - "${sample}" - did you mean: ${similar.join(", ")}?`;
+      // First check for missing samples before evaluating
+      const sampleNames = extractSampleNames(code);
+      if (sampleNames.length > 0) {
+        const { missing, suggestions } = await validateSamples(sampleNames);
+        if (missing.length > 0) {
+          // Build error message with suggestions
+          let errorMsg = `Error: Unknown sample(s): ${missing.join(", ")}.`;
+
+          // Add suggestions for each missing sample
+          for (const [sample, similar] of suggestions) {
+            if (similar.length > 0) {
+              errorMsg += `\n  - "${sample}" - did you mean: ${similar.join(", ")}?`;
+            }
           }
+
+          errorMsg += `\n\nUse the listSamples tool to see available sounds.\n\nCode:\n${code}`;
+
+          return {
+            success: false,
+            error: errorMsg,
+          };
         }
-
-        errorMsg += `\n\nUse the listSamples tool to see available sounds.\n\nCode:\n${code}`;
-
-        return {
-          success: false,
-          error: errorMsg,
-        };
       }
+
+      const result = await service.updateAndPlay(code, { source: "ai" });
+
+      return result;
+    } finally {
+      service.setToolUpdatingRepl(false);
     }
-
-    const result = await service.updateAndPlay(code, { source: "ai" });
-
-    return result;
   },
   toolSchema: z
     .function()

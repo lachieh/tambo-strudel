@@ -11,6 +11,8 @@
 
 import { evalScope } from "@strudel/core";
 import { transpiler } from "@strudel/transpiler";
+import { Compartment, StateEffect } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
 import {
   getAudioContext,
   initAudioOnFirstClick,
@@ -69,6 +71,10 @@ export class StrudelService {
   private loadingCallbacks: LoadingCallback[] = [];
   private stateChangeCallbacks: CodeChangeCallback[] = [];
 
+  private _isToolUpdatingRepl = false;
+  private toolUpdatingReplCallbacks: ((isUpdating: boolean) => void)[] = [];
+  private readonly editorEditableCompartment = new Compartment();
+
   // Repl state
   private _state: StrudelReplState = {
     code: DEFAULT_CODE,
@@ -97,6 +103,32 @@ export class StrudelService {
   private storageAdapter: StrudelStorageAdapter | null = null;
 
   private constructor() {}
+
+  get isToolUpdatingRepl(): boolean {
+    return this._isToolUpdatingRepl;
+  }
+
+  setToolUpdatingRepl(value: boolean): void {
+    if (this._isToolUpdatingRepl === value) return;
+
+    this._isToolUpdatingRepl = value;
+    this.toolUpdatingReplCallbacks.forEach((cb) => cb(value));
+
+    if (this.editorInstance) {
+      this.setEditorEditable(!value);
+    }
+  }
+
+  onToolUpdatingReplChange(callback: (isUpdating: boolean) => void): () => void {
+    this.toolUpdatingReplCallbacks.push(callback);
+    callback(this._isToolUpdatingRepl);
+
+    return () => {
+      this.toolUpdatingReplCallbacks = this.toolUpdatingReplCallbacks.filter(
+        (cb) => cb !== callback,
+      );
+    };
+  }
 
   /**
    * Get or create the singleton instance
@@ -889,7 +921,9 @@ export class StrudelService {
         prebake: this.prebake,
       });
 
-const keybindings = getKeybindings();
+      this.installEditableCompartment();
+
+      const keybindings = getKeybindings();
       const resolvedKeybindings =
         keybindings &&
         (ALLOWED_KEYBINDINGS as readonly string[]).includes(keybindings)
@@ -923,6 +957,39 @@ const keybindings = getKeybindings();
     this.notifyLoading("Ready", 100);
     this.notifyStateChange(this.editorInstance.repl.state);
   };
+
+  private installEditableCompartment(): void {
+    if (!this.editorInstance) return;
+
+    try {
+      this.editorInstance.editor.dispatch({
+        effects: StateEffect.appendConfig.of(
+          this.editorEditableCompartment.of(
+            EditorView.editable.of(!this._isToolUpdatingRepl),
+          ),
+        ),
+      });
+    } catch (error) {
+      console.warn(
+        "[StrudelService] Failed to install editable compartment:",
+        error,
+      );
+    }
+  }
+
+  private setEditorEditable(editable: boolean): void {
+    if (!this.editorInstance) return;
+
+    try {
+      this.editorInstance.editor.dispatch({
+        effects: this.editorEditableCompartment.reconfigure(
+          EditorView.editable.of(editable),
+        ),
+      });
+    } catch (error) {
+      console.warn("[StrudelService] Failed to toggle editor editability:", error);
+    }
+  }
 
   /**
    * Detach the editor from its container

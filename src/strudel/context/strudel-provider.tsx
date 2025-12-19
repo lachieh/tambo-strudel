@@ -33,6 +33,7 @@ type StrudelContextValue = {
   isReady: boolean;
   isStorageLoaded: boolean;
   isAiUpdating: boolean;
+  isToolUpdatingRepl: boolean;
   setIsAiUpdating: (value: boolean) => void;
 };
 
@@ -54,10 +55,17 @@ export function StrudelProvider({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     isAiUpdatingRef.current = isAiUpdating;
   }, [isAiUpdating]);
+  const [isToolUpdatingRepl, setIsToolUpdatingRepl] = React.useState(() => {
+    return strudelService.isToolUpdatingRepl;
+  });
   const [allRepls, setAllRepls] = React.useState<ReplSummary[]>([]);
   const [currentReplId, setCurrentReplId] = React.useState<string | null>(() =>
     strudelService.getCurrentReplId(),
   );
+
+  React.useEffect(() => {
+    return strudelService.onToolUpdatingReplChange(setIsToolUpdatingRepl);
+  }, []);
 
   React.useEffect(() => {
     const loadingUnsubscribe = strudelService.onLoadingProgress(
@@ -225,6 +233,7 @@ export function StrudelProvider({ children }: { children: React.ReactNode }) {
       isReady: strudelService.isReady,
       isStorageLoaded: strudelService.isStorageLoaded,
       isAiUpdating,
+      isToolUpdatingRepl,
       setIsAiUpdating,
     };
   }, [
@@ -242,6 +251,7 @@ export function StrudelProvider({ children }: { children: React.ReactNode }) {
     deleteRepl,
     replState,
     isAiUpdating,
+    isToolUpdatingRepl,
     clearRevertNotification,
   ]);
 
