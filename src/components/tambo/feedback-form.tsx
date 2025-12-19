@@ -61,6 +61,24 @@ function getSafeGithubNewIssueBase(raw: string): string | null {
       return null;
     }
 
+    if (!url.pathname.endsWith("/issues/new")) {
+      if (process.env.NODE_ENV !== "production" && !didWarnInvalidGithubNewIssueBase) {
+        didWarnInvalidGithubNewIssueBase = true;
+        console.warn("Invalid config.githubNewIssue; path must end with /issues/new", {
+          raw,
+        });
+      }
+      return null;
+    }
+
+    if (url.search && process.env.NODE_ENV !== "production" && !didWarnInvalidGithubNewIssueBase) {
+      didWarnInvalidGithubNewIssueBase = true;
+      console.warn(
+        "config.githubNewIssue should not include query params; they will be ignored",
+        { raw },
+      );
+    }
+
     url.hash = "";
     url.search = "";
     return url.toString().replace(/\?$/, "");
@@ -75,10 +93,23 @@ function getSafeGithubNewIssueBase(raw: string): string | null {
 
 function getDeliveredFlag(data: unknown): boolean | null {
   if (!data || typeof data !== "object") return null;
-  if (!("delivered" in data)) return null;
+  if (!("delivered" in data)) {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("Feedback API response missing 'delivered' field", { data });
+    }
+    return null;
+  }
 
   const delivered = (data as { delivered?: unknown }).delivered;
-  return typeof delivered === "boolean" ? delivered : null;
+
+  if (typeof delivered !== "boolean") {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("Feedback API 'delivered' field is not boolean", { delivered });
+    }
+    return null;
+  }
+
+  return delivered;
 }
 
 export const FeedbackForm = React.forwardRef<HTMLDivElement, FeedbackFormProps>(
@@ -347,6 +378,13 @@ export const FeedbackForm = React.forwardRef<HTMLDivElement, FeedbackFormProps>(
                       : "Submit feedback"}
                 </button>
 
+                {isSubmitted && wasDelivered === false && (
+                  <p className="text-xs text-muted-foreground">
+                    Feedback was accepted, but email isn’t configured here.
+                    Please open a GitHub issue so we can track it.
+                  </p>
+                )}
+
                 {githubIssueUrl && (
                   <>
                     <p className="text-xs text-muted-foreground">
@@ -356,13 +394,6 @@ export const FeedbackForm = React.forwardRef<HTMLDivElement, FeedbackFormProps>(
                           ? "Having trouble sending? Open a GitHub issue so we can track it."
                           : "Prefer GitHub? Open an issue so we can track this."}
                     </p>
-
-                    {isSubmitted && wasDelivered === false && (
-                      <p className="text-xs text-muted-foreground">
-                        Feedback was accepted, but email isn’t configured here.
-                        Please open a GitHub issue so we can track it.
-                      </p>
-                    )}
                     <a
                       href={githubIssueUrl}
                       target="_blank"
