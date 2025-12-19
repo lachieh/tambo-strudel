@@ -13,6 +13,7 @@ type Hint = {
   href: string;
 };
 
+// Static list; not expected to change at runtime.
 const HINTS: Hint[] = [
   {
     message: "Strudel LM is open source — check it out!",
@@ -37,7 +38,6 @@ export function GenerationIndicator({
   className,
   ...props
 }: GenerationIndicatorProps) {
-  const hasHints = HINTS.length > 0;
   const [showHints, setShowHints] = React.useState(false);
   const [dotCount, setDotCount] = React.useState(0);
   const [hintIndex, setHintIndex] = React.useState(0);
@@ -54,7 +54,7 @@ export function GenerationIndicator({
     setDotCount(0);
     setHintIndex(0);
 
-    if (!hasHints) return;
+    if (HINTS.length === 0) return;
 
     const timeout = window.setTimeout(() => {
       setShowHints(true);
@@ -63,22 +63,23 @@ export function GenerationIndicator({
     return () => {
       window.clearTimeout(timeout);
     };
-  }, [hasHints, isGenerating]);
+  }, [isGenerating]);
 
   React.useEffect(() => {
-    if (!isGenerating || (showHints && hasHints)) return;
+    if (!isGenerating || showHints) return;
 
     const interval = window.setInterval(() => {
+      // 0–3 dots: "", ".", "..", "..."
       setDotCount((prev) => (prev + 1) % 4);
     }, DOTS_TICK_MS);
 
     return () => {
       window.clearInterval(interval);
     };
-  }, [hasHints, isGenerating, showHints]);
+  }, [isGenerating, showHints]);
 
   React.useEffect(() => {
-    if (!isGenerating || !showHints || !hasHints) return;
+    if (!isGenerating || !showHints || HINTS.length === 0) return;
 
     const interval = window.setInterval(() => {
       setHintIndex((prev) => (prev + 1) % HINTS.length);
@@ -87,9 +88,9 @@ export function GenerationIndicator({
     return () => {
       window.clearInterval(interval);
     };
-  }, [hasHints, isGenerating, showHints]);
+  }, [isGenerating, showHints]);
 
-  const hint = hasHints ? HINTS[hintIndex] : null;
+  const hint = HINTS.length > 0 ? HINTS[hintIndex] : null;
   const dots = ".".repeat(dotCount);
 
   return (
