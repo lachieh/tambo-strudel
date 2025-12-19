@@ -12,6 +12,7 @@ import {
   MessageSuggestions,
   MessageSuggestionsList,
 } from "@/components/tambo/message-suggestions";
+import { GenerationIndicator } from "@/components/tambo/generation-indicator";
 import { ScrollableMessageContainer } from "@/components/tambo/scrollable-message-container";
 import {
   ThreadContent,
@@ -178,17 +179,17 @@ function AppContent() {
   const { thread, startNewThread, switchCurrentThread, isIdle } =
     useTamboThread();
   const { generationStage } = useTambo();
+
+  const isGenerating =
+    !isIdle && generationStage !== "IDLE" && generationStage !== "COMPLETE";
   const { data: threadList, isSuccess: threadListLoaded } = useTamboThreadList({
     contextKey,
   });
 
   // Track AI generation state to lock editor during updates
   React.useEffect(() => {
-    // Show overlay when AI is actively working (not idle and in a generation stage)
-    const isGenerating =
-      !isIdle && generationStage !== "IDLE" && generationStage !== "COMPLETE";
     setIsAiUpdating(isGenerating);
-  }, [isIdle, generationStage, setIsAiUpdating]);
+  }, [isGenerating, setIsAiUpdating]);
 
   // Show beta modal on first login
   React.useEffect(() => {
@@ -286,6 +287,7 @@ function AppContent() {
 
           {/* Input */}
           <div className="p-3 border-t border-border">
+            <GenerationIndicator isGenerating={isGenerating} />
             <MessageInput contextKey={contextKey}>
               <MessageInputTextarea placeholder=">" />
               <MessageInputToolbar>
