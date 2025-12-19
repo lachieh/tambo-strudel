@@ -56,10 +56,7 @@ import { BetaModal } from "@/components/beta-modal";
 
 const BETA_MODAL_SHOWN_KEY = "strudel-beta-modal-shown-v1";
 
-/**
- * Context helper that provides the current Strudel REPL state to the AI.
- * This allows the AI to see what code is currently in the editor and any errors.
- */
+// Tambo context helpers docs: https://docs.tambo.co/concepts/additional-context/configuration
 const strudelContextHelper = () => {
   const service = StrudelService.instance();
   const state = service.getReplState();
@@ -108,13 +105,13 @@ const getOrCreateAnonymousContextKey = (): string => {
   return contextKey;
 };
 
-// Hook to get context key (user ID if logged in, anonymous otherwise)
+// Hook to get a stable context key (persistent per-browser when logged in, anonymous otherwise)
 function useContextKey(): string {
   const { isAuthenticated, isLoaded } = useStrudelStorage();
   const [anonymousKey] = React.useState(getOrCreateAnonymousContextKey);
 
-  // If user is logged in, use a persistent key stored in localStorage
-  // This ensures the same user gets the same context key across sessions
+  // If user is logged in, use a persistent key stored in localStorage.
+  // This keeps the thread list stable across reloads for the same browser profile.
   if (isAuthenticated && isLoaded) {
     // For authenticated users, we use a separate persistent key
     // that gets created once and stored (similar to anonymous key)

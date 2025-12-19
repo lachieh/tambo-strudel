@@ -10,8 +10,12 @@
  * the Tambo dashboard for the "strudel-ai" context key, not via initialMessages.
  * This avoids conflicts when switching between existing threads.
  *
- * Read more about Tambo at https://tambo.co/docs
  */
+
+// Tambo docs: https://docs.tambo.co/getting-started/integrate
+// Components: https://docs.tambo.co/concepts/components/registering-with-tambo-provider
+// Tools: https://docs.tambo.co/concepts/tools/adding-tools
+// Initial messages/custom instructions: https://docs.tambo.co/concepts/message-threads/initial-messages
 
 import type { TamboComponent, TamboTool } from "@tambo-ai/react";
 import { validateAndUpdateRepl } from "@/strudel/tools/validateAndUpdateRepl";

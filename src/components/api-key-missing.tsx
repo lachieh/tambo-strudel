@@ -37,6 +37,18 @@ export function ApiKeyMissing() {
             tambo.co/dashboard
           </a>
         </p>
+
+        <p className="text-xs text-muted-foreground">
+          Setup docs:{" "}
+          <a
+            href="https://docs.tambo.co/getting-started/integrate"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary hover:underline"
+          >
+            docs.tambo.co/getting-started/integrate
+          </a>
+        </p>
       </div>
     </div>
   );

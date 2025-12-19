@@ -66,6 +66,21 @@ npm run dev
 
 Open [localhost:3000](http://localhost:3000) and start making music.
 
+## Tambo integration
+
+Key places we use Tambo in this repo:
+
+- `src/app/chat/page.tsx`: wraps the app in `TamboProvider` and registers `contextHelpers`.
+- `src/lib/tambo.ts`: registers Tambo components + tools.
+- `src/strudel/tools/*`: local tools that Tambo can call (ex: `updateRepl`).
+
+Relevant docs:
+
+- https://docs.tambo.co/getting-started/integrate
+- https://docs.tambo.co/concepts/components/
+- https://docs.tambo.co/concepts/tools/adding-tools
+- https://docs.tambo.co/concepts/additional-context/configuration
+
 ## Prompts to Try
 
 - "Make the intro to Stranger Things"
