@@ -15,8 +15,6 @@ import { ExternalLink } from "lucide-react";
 import * as React from "react";
 import { z } from "zod/v3";
 
-let didWarnInvalidGithubNewIssueBase = false;
-
 export const feedbackFormSchema = z.object({
   title: z
     .string()
@@ -51,42 +49,13 @@ function getSafeGithubNewIssueBase(raw: string): string | null {
   try {
     const url = new URL(raw);
 
-    if (url.protocol !== "https:" || url.hostname !== "github.com") {
-      if (process.env.NODE_ENV !== "production" && !didWarnInvalidGithubNewIssueBase) {
-        didWarnInvalidGithubNewIssueBase = true;
-        console.warn("Invalid config.githubNewIssue; must be https://github.com", {
-          raw,
-        });
-      }
-      return null;
-    }
-
-    if (!url.pathname.endsWith("/issues/new")) {
-      if (process.env.NODE_ENV !== "production" && !didWarnInvalidGithubNewIssueBase) {
-        didWarnInvalidGithubNewIssueBase = true;
-        console.warn("Invalid config.githubNewIssue; path must end with /issues/new", {
-          raw,
-        });
-      }
-      return null;
-    }
-
-    if (url.search && process.env.NODE_ENV !== "production" && !didWarnInvalidGithubNewIssueBase) {
-      didWarnInvalidGithubNewIssueBase = true;
-      console.warn(
-        "config.githubNewIssue should not include query params; they will be ignored",
-        { raw },
-      );
-    }
+    if (url.protocol !== "https:" || url.hostname !== "github.com") return null;
+    if (!url.pathname.endsWith("/issues/new")) return null;
 
     url.hash = "";
     url.search = "";
     return url.toString().replace(/\?$/, "");
   } catch {
-    if (process.env.NODE_ENV !== "production" && !didWarnInvalidGithubNewIssueBase) {
-      didWarnInvalidGithubNewIssueBase = true;
-      console.warn("Invalid config.githubNewIssue; could not parse URL", { raw });
-    }
     return null;
   }
 }
@@ -95,7 +64,7 @@ function getDeliveredFlag(data: unknown): boolean | null {
   if (!data || typeof data !== "object") return null;
   if (!("delivered" in data)) {
     if (process.env.NODE_ENV !== "production") {
-      console.warn("Feedback API response missing 'delivered' field", { data });
+      console.warn("Feedback API response missing delivered flag");
     }
     return null;
   }
@@ -104,12 +73,52 @@ function getDeliveredFlag(data: unknown): boolean | null {
 
   if (typeof delivered !== "boolean") {
     if (process.env.NODE_ENV !== "production") {
-      console.warn("Feedback API 'delivered' field is not boolean", { delivered });
+      console.warn("Feedback API delivered flag is not boolean");
     }
     return null;
   }
 
   return delivered;
+}
+
+type FeedbackApiErrorPayload = {
+  code?: string;
+  message?: string;
+  error?: string;
+};
+
+async function parseFeedbackError(res: Response): Promise<{
+  status: number;
+  payload: FeedbackApiErrorPayload | null;
+  text: string | null;
+}> {
+  const contentType = res.headers.get("content-type") ?? "";
+  if (!contentType.includes("application/json")) {
+    const text = await res.text().catch(() => null);
+    return { status: res.status, payload: null, text };
+  }
+
+  const data: unknown = await res.json().catch(() => null);
+  if (!data || typeof data !== "object") {
+    return { status: res.status, payload: null, text: null };
+  }
+
+  const payload: FeedbackApiErrorPayload = {
+    code:
+      typeof (data as { code?: unknown }).code === "string"
+        ? (data as { code: string }).code
+        : undefined,
+    message:
+      typeof (data as { message?: unknown }).message === "string"
+        ? (data as { message: string }).message
+        : undefined,
+    error:
+      typeof (data as { error?: unknown }).error === "string"
+        ? (data as { error: string }).error
+        : undefined,
+  };
+
+  return { status: res.status, payload, text: null };
 }
 
 export const FeedbackForm = React.forwardRef<HTMLDivElement, FeedbackFormProps>(
@@ -118,6 +127,7 @@ export const FeedbackForm = React.forwardRef<HTMLDivElement, FeedbackFormProps>(
     const { data: session } = useSession();
     const isSignedIn = Boolean(session?.user?.email);
     const [showAuthModal, setShowAuthModal] = React.useState(false);
+    const didWarnInvalidGithubNewIssueBaseRef = React.useRef(false);
 
     const [draftTitle, setDraftTitle] = useTamboComponentState<string>(
       "draftTitle",
@@ -168,12 +178,24 @@ export const FeedbackForm = React.forwardRef<HTMLDivElement, FeedbackFormProps>(
       const cleanedBody = (draftBody ?? "").trim();
 
       if (cleanedBody.length < FEEDBACK_BODY_MIN_LENGTH) return null;
+      if (cleanedTitle.length < FEEDBACK_TITLE_MIN_LENGTH) return null;
 
       const base = getSafeGithubNewIssueBase(config.githubNewIssue);
-      if (!base) return null;
+      if (!base) {
+        if (
+          process.env.NODE_ENV !== "production" &&
+          !didWarnInvalidGithubNewIssueBaseRef.current
+        ) {
+          didWarnInvalidGithubNewIssueBaseRef.current = true;
+          console.warn(
+            "Invalid config.githubNewIssue; expected https://github.com/.../issues/new",
+          );
+        }
+        return null;
+      }
 
       const params = new URLSearchParams();
-      params.set("title", cleanedTitle || "Feedback from StrudelLM");
+      params.set("title", cleanedTitle);
       params.set(
         "body",
         buildGithubIssueBody({
@@ -210,48 +232,23 @@ export const FeedbackForm = React.forwardRef<HTMLDivElement, FeedbackFormProps>(
         });
 
         if (!res.ok) {
-          const contentType = res.headers.get("content-type") ?? "";
-          if (contentType.includes("application/json")) {
-            const data: unknown = await res.json().catch(() => null);
+          const { status, payload, text } = await parseFeedbackError(res);
+          const code = payload?.code;
 
-            if (
-              res.status === 401 &&
-              data &&
-              typeof data === "object" &&
-              "code" in data &&
-              (data as { code?: unknown }).code === "AUTH_REQUIRED_FOR_FEEDBACK"
-            ) {
-              setIsSending(false);
-              setShowAuthModal(true);
-              return;
-            }
-
-            if (
-              data &&
-              typeof data === "object" &&
-              "message" in data &&
-              typeof (data as { message?: unknown }).message === "string"
-            ) {
-              throw new Error((data as { message: string }).message);
-            }
-
-            if (
-              data &&
-              typeof data === "object" &&
-              "error" in data &&
-              typeof (data as { error?: unknown }).error === "string"
-            ) {
-              throw new Error((data as { error: string }).error);
-            }
+          if (status === 401 && code === "AUTH_REQUIRED_FOR_FEEDBACK") {
+            setShowAuthModal(true);
+            return;
           }
 
-          if (res.status >= 500) {
+          if (payload?.message) throw new Error(payload.message);
+          if (payload?.error) throw new Error(payload.error);
+
+          if (status >= 500) {
             throw new Error(
               "Our servers had an issue saving your feedback. Please try again.",
             );
           }
 
-          const text = await res.text();
           throw new Error(text || "Request failed");
         }
 
@@ -447,8 +444,8 @@ export const FeedbackForm = React.forwardRef<HTMLDivElement, FeedbackFormProps>(
                       Open GitHub issue
                     </button>
                     <p className="text-xs text-muted-foreground">
-                      Add a bit more detail above to enable opening a GitHub
-                      issue.
+                      Add a title and a bit more detail above to enable opening
+                      a GitHub issue.
                     </p>
                   </div>
                 )}
