@@ -134,6 +134,19 @@ const bestEffortNonSecureId = (): string => {
     // Fall through
   }
 
+  try {
+    const crypto = globalThis.crypto;
+    if (crypto?.getRandomValues) {
+      const bytes = new Uint8Array(16);
+      crypto.getRandomValues(bytes);
+      return Array.from(bytes)
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+    }
+  } catch {
+    // Fall through
+  }
+
   nonSecureCounter = (nonSecureCounter + 1) % Number.MAX_SAFE_INTEGER;
   return `${Date.now()}-${nonSecureCounter}-${Math.random().toString(16).slice(2)}`;
 };
