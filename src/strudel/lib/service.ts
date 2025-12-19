@@ -39,19 +39,16 @@ type UpdateSource = "ai" | "user";
 const DEFAULT_CODE = `// Welcome to StrudelLM!
 // Write patterns here or ask the AI for help
 
-// Example: Synth with scope and pianoroll visualizations
+// Example: Piano + drums with scope and pianoroll visualizations
 // slider(initial, min, max, step) is a built-in UI control
 stack(
-  n("0 2 4 7")
-    .s("sawtooth")
-    .lpf(1200)
-    .gain(slider(0.4, 0, 1, 0.01))
-    ._scope({ height: 120, scale: 0.5 }),
-  n("0 [7 5] 3 [5 7]")
-    .s("square")
-    .lpf(400)
-    .gain(0.3)
-    ._pianoroll({ fold: 1 })
+  note("c3 e3 g3 b3")
+    .s("piano")
+    .gain(slider(0.5, 0, 1, 0.01))
+    ._pianoroll({ fold: 1 }),
+  s("bd sd [bd bd] sd")
+    .gain(0.8)
+    ._scope({ height: 80 })
 )
 `;
 
