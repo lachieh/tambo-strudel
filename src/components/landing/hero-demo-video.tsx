@@ -7,17 +7,20 @@ export function HeroDemoVideo() {
   const [isMuted, setIsMuted] = useState(true);
 
   const toggleMuted = useCallback(() => {
-    const video = videoRef.current;
-    const nextMuted = !isMuted;
+    setIsMuted((prevMuted) => {
+      const video = videoRef.current;
+      const nextMuted = !prevMuted;
 
-    setIsMuted(nextMuted);
-    if (video) {
-      video.muted = nextMuted;
-      if (!nextMuted) {
-        void video.play().catch(() => {});
+      if (video) {
+        video.muted = nextMuted;
+        if (!nextMuted) {
+          void video.play();
+        }
       }
-    }
-  }, [isMuted]);
+
+      return nextMuted;
+    });
+  }, []);
 
   return (
     // Matches `public/videos/hero-demo.mp4` (1700x1080).
@@ -41,7 +44,7 @@ export function HeroDemoVideo() {
         onClick={toggleMuted}
         aria-pressed={!isMuted}
         aria-label={isMuted ? "Unmute demo video" : "Mute demo video"}
-        className="absolute bottom-3 right-3 rounded-lg border border-border/50 bg-background/80 px-3 py-1.5 text-sm text-foreground shadow-sm backdrop-blur hover:bg-background/90"
+        className="absolute bottom-3 right-3 rounded-lg border border-border/50 bg-background/80 px-3 py-1.5 text-sm text-foreground shadow-sm backdrop-blur hover:bg-background/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
         {isMuted ? "Unmute" : "Mute"}
       </button>
