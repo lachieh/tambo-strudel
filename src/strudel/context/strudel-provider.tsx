@@ -188,7 +188,7 @@ export function StrudelProvider({ children }: { children: React.ReactNode }) {
         );
         console.warn("[StrudelProvider] Attach error caught:", error);
       });
-  }, []);
+  }, [setMessage, setState]);
 
   const setCode = React.useCallback(
     (code: string, shouldPlay: boolean = false) => {
