@@ -11,8 +11,6 @@
 
 import { evalScope } from "@strudel/core";
 import { transpiler } from "@strudel/transpiler";
-import { Compartment, StateEffect } from "@codemirror/state";
-import { EditorView } from "@codemirror/view";
 import {
   getAudioContext,
   initAudioOnFirstClick,
@@ -74,7 +72,6 @@ export class StrudelService {
   private toolUpdatingReplDepth = 0;
   private didWarnToolUpdatingReplUnderflow = false;
   private toolUpdatingReplCallbacks: ((isUpdating: boolean) => void)[] = [];
-  private readonly editorEditableCompartment = new Compartment();
 
   // Repl state
   private _state: StrudelReplState = {
@@ -109,7 +106,7 @@ export class StrudelService {
     return this.toolUpdatingReplDepth > 0;
   }
 
-  setToolUpdatingRepl(value: boolean): void {
+  private setToolUpdatingRepl(value: boolean): void {
     const wasUpdating = this.isToolUpdatingRepl;
 
     if (value) {
@@ -130,10 +127,6 @@ export class StrudelService {
     if (wasUpdating === isUpdating) return;
 
     this.toolUpdatingReplCallbacks.forEach((cb) => cb(isUpdating));
-
-    if (this.editorInstance) {
-      this.setEditorEditable(!isUpdating);
-    }
   }
 
   beginToolUpdatingRepl(): () => void {
@@ -949,8 +942,6 @@ export class StrudelService {
         prebake: this.prebake,
       });
 
-      this.installEditableCompartment();
-
       const keybindings = getKeybindings();
       const resolvedKeybindings =
         keybindings &&
@@ -985,44 +976,6 @@ export class StrudelService {
     this.notifyLoading("Ready", 100);
     this.notifyStateChange(this.editorInstance.repl.state);
   };
-
-  private installEditableCompartment(): void {
-    if (!this.editorInstance) return;
-
-    try {
-      this.editorInstance.editor.dispatch({
-        effects: StateEffect.appendConfig.of(
-          this.editorEditableCompartment.of(
-            EditorView.editable.of(!this.isToolUpdatingRepl),
-          ),
-        ),
-      });
-
-      this.setEditorEditable(!this.isToolUpdatingRepl);
-    } catch (error) {
-      console.warn(
-        "[StrudelService] Failed to install editable compartment; REPL edit blocking may not work correctly:",
-        error,
-      );
-    }
-  }
-
-  private setEditorEditable(editable: boolean): void {
-    if (!this.editorInstance) return;
-
-    try {
-      this.editorInstance.editor.dispatch({
-        effects: this.editorEditableCompartment.reconfigure(
-          EditorView.editable.of(editable),
-        ),
-      });
-    } catch (error) {
-      console.warn(
-        "[StrudelService] Failed to toggle editor editability; updates may not block user edits as expected:",
-        error,
-      );
-    }
-  }
 
   /**
    * Detach the editor from its container
