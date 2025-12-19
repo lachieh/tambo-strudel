@@ -62,20 +62,22 @@ export default function LandingPage() {
           </p>
 
           {/* Video Demo */}
-          <div className="relative mb-10 rounded-2xl overflow-hidden border border-border/50 shadow-2xl shadow-success/5 bg-black/50 backdrop-blur-sm">
+          <div className="relative mb-10 mx-auto w-full max-w-2xl rounded-2xl overflow-hidden border border-border/50 shadow-2xl shadow-success/5 bg-black/50 backdrop-blur-sm">
             <video
-              className="w-full aspect-video"
+              className="w-full h-auto"
               autoPlay
               loop
               muted
               playsInline
+              controls
+              preload="metadata"
               aria-label="StrudelLM live coding music demo"
             >
-              <source
-                src="https://github.com/user-attachments/assets/6f88f3b3-4be2-41fe-b77e-199213811278"
-                type="video/mp4"
-              />
-              Demo video (StrudelLM live coding with AI) is not supported in this browser.
+              <source src="/videos/hero-demo.mp4" type="video/mp4" />
+              <p className="p-4 text-sm text-muted-foreground">
+                Demo video (StrudelLM live coding with AI) is not supported in this
+                browser.
+              </p>
             </video>
           </div>
 
