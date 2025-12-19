@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { HeroDemoVideo } from "@/components/landing/hero-demo-video";
+
 export const metadata: Metadata = {
   title: "StrudelLM - AI-Powered Live Coding Music",
   description:
@@ -61,25 +63,7 @@ export default function LandingPage() {
             Powered by Strudel and AI.
           </p>
 
-          {/* Video Demo */}
-          <div className="relative mb-10 mx-auto w-full max-w-2xl aspect-[85/54] rounded-2xl overflow-hidden border border-border/50 shadow-2xl shadow-success/5 bg-black/50 backdrop-blur-sm">
-            <video
-              className="w-full h-full object-cover"
-              autoPlay
-              loop
-              muted
-              playsInline
-              controls
-              preload="metadata"
-              aria-label="StrudelLM live coding music demo"
-            >
-              <source src="/videos/hero-demo.mp4" type="video/mp4" />
-              <p className="p-4 text-sm text-muted-foreground">
-                Demo video (StrudelLM live coding with AI) is not supported in this
-                browser.
-              </p>
-            </video>
-          </div>
+          <HeroDemoVideo />
 
           {/* CTA Button */}
           <Link
