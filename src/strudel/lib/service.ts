@@ -17,6 +17,7 @@ import {
   registerSynthSounds,
   setDefaultAudioContext,
   webaudioOutput,
+  webaudioRepl,
 } from "@strudel/webaudio";
 import { prebake } from "@/strudel/lib/prebake";
 import { audioBufferToWavBlob } from "@/strudel/lib/wav";
