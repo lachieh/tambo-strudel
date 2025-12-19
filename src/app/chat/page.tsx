@@ -189,6 +189,11 @@ const bestEffortNonSecureId = (): string => {
 };
 
 // Get or create anonymous context key (for users not logged in)
+// Anonymous context key semantics:
+// - Stored only in localStorage under ANON_CONTEXT_KEY_STORAGE.
+// - Used solely to group Tambo threads within this browser profile.
+// - Not coupled to any auth identity and may be cleared at any time (e.g., clearing site data),
+//   which will start a fresh anonymous thread space.
 const getOrCreateAnonymousContextKey = (): string | null => {
   if (typeof window === "undefined") return null;
 
@@ -200,6 +205,24 @@ const getOrCreateAnonymousContextKey = (): string | null => {
   return contextKey;
 };
 
+function useAuthIdentity() {
+  const { data: sessionData, isPending } = useSession();
+  const userId = sessionData?.user?.id ?? null;
+  const userToken = sessionData?.session?.token ?? null;
+
+  if (process.env.NODE_ENV !== "production") {
+    if (userToken && !userId) {
+      console.warn("Auth identity mismatch: userToken present but userId missing");
+    }
+
+    if (userId && !userToken) {
+      console.warn("Auth identity mismatch: userId present but userToken missing");
+    }
+  }
+
+  return { isPending, userId, userToken };
+}
+
 // Hook to get a stable context key for Tambo thread scoping.
 // - Authenticated users: Better Auth user id (stable across devices)
 // - Anonymous users: persistent per-browser id stored in localStorage
@@ -209,19 +232,19 @@ const getOrCreateAnonymousContextKey = (): string | null => {
 function useContextKey():
   | { contextKey: string; isReady: true }
   | { contextKey: null; isReady: false } {
-  const { data: session, isPending: isSessionPending } = useSession();
+  const { isPending: isIdentityPending, userId } = useAuthIdentity();
   const [contextKey, setContextKey] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    if (isSessionPending) return;
+    if (isIdentityPending) return;
 
-    if (session?.user?.id) {
-      setContextKey(`strudel-user-${session.user.id}`);
+    if (userId) {
+      setContextKey(`strudel-user-${userId}`);
       return;
     }
 
     setContextKey(getOrCreateAnonymousContextKey());
-  }, [isSessionPending, session?.user?.id]);
+  }, [isIdentityPending, userId]);
 
   if (contextKey) {
     return { contextKey, isReady: true };
@@ -256,8 +279,9 @@ function AppContent() {
   const [replInitialized, setReplInitialized] = React.useState(false);
   const [showBetaModal, setShowBetaModal] = React.useState(false);
   const lastContextKeyRef = React.useRef<string | null>(null);
+  const authIdentity = useAuthIdentity();
   const contextKeyState = useContextKey();
-  const canUseContextKey = contextKeyState.isReady;
+  const identityReady = contextKeyState.isReady && !authIdentity.isPending;
   const { isPending } = useLoadingState();
   const isAuthenticated = useIsAuthenticated();
   const {
@@ -280,18 +304,18 @@ function AppContent() {
     useTamboThread();
   const { generationStage } = useTambo();
   const { data: threadList, isSuccess: threadListLoaded } = useTamboThreadList(
-    { contextKey: canUseContextKey ? contextKeyState.contextKey : undefined },
-    { enabled: canUseContextKey },
+    { contextKey: identityReady ? contextKeyState.contextKey : undefined },
+    { enabled: identityReady },
   );
 
   React.useEffect(() => {
-    if (!contextKeyState.isReady) return;
+    if (!identityReady) return;
     if (lastContextKeyRef.current === contextKeyState.contextKey) return;
     lastContextKeyRef.current = contextKeyState.contextKey;
     // Context key changes imply a user identity change (login/logout). Reset per-thread initialization
     // so we re-select/create threads under the new scope.
     setThreadInitialized(false);
-  }, [contextKeyState.isReady, contextKeyState.contextKey]);
+  }, [identityReady, contextKeyState.contextKey]);
 
   // Track AI generation state to lock editor during updates
   React.useEffect(() => {
@@ -318,7 +342,8 @@ function AppContent() {
 
   // Initialize: select most recent thread or create new
   React.useEffect(() => {
-    if (!strudelIsReady || !threadListLoaded || threadInitialized) return;
+    if (!identityReady || !strudelIsReady || !threadListLoaded || threadInitialized)
+      return;
 
     const existingThreads = threadList?.items ?? [];
     if (existingThreads.length > 0) {
@@ -328,6 +353,7 @@ function AppContent() {
     }
     setThreadInitialized(true);
   }, [
+    identityReady,
     strudelIsReady,
     threadListLoaded,
     threadInitialized,
@@ -461,14 +487,14 @@ function TamboAuthedProvider({
   apiKey: string;
   children: React.ReactNode;
 }) {
-  const { data: sessionData } = useSession();
+  const { userToken } = useAuthIdentity();
 
   return (
     <TamboProvider
       tamboUrl={process.env.NEXT_PUBLIC_TAMBO_URL}
       apiKey={apiKey}
       // Better Auth session token, exchanged by Tambo for a Tambo session token.
-      userToken={sessionData?.session?.token}
+      userToken={userToken ?? undefined}
       tools={tools}
       components={components}
       contextHelpers={{
