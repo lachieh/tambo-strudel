@@ -29,7 +29,7 @@ type StrudelContextValue = {
   stop: () => void;
   reset: () => void;
   clearError: () => void;
-  setRoot: (el: HTMLDivElement) => void;
+  setRoot: (el: HTMLDivElement | null) => void;
   isReady: boolean;
   isStorageLoaded: boolean;
   isAiUpdating: boolean;
@@ -42,6 +42,22 @@ export const StrudelContext = React.createContext<StrudelContextValue | null>(
 
 const strudelService = StrudelService.instance();
 
+let initPromise: Promise<void> | null = null;
+const ensureStrudelReady = (): Promise<void> => {
+  if (strudelService.isReady) {
+    return Promise.resolve();
+  }
+
+  if (!initPromise) {
+    initPromise = strudelService.init().catch((error) => {
+      initPromise = null;
+      throw error;
+    });
+  }
+
+  return initPromise;
+};
+
 export function StrudelProvider({ children }: { children: React.ReactNode }) {
   const { setMessage, setProgress, setState } = useLoadingContext();
   const [replState, setReplState] = React.useState<StrudelReplState | null>(
@@ -51,6 +67,7 @@ export function StrudelProvider({ children }: { children: React.ReactNode }) {
   );
   const [isAiUpdating, setIsAiUpdating] = React.useState(false);
   const isAiUpdatingRef = React.useRef(isAiUpdating);
+  const attachOperationIdRef = React.useRef(0);
   React.useEffect(() => {
     isAiUpdatingRef.current = isAiUpdating;
   }, [isAiUpdating]);
@@ -98,8 +115,9 @@ export function StrudelProvider({ children }: { children: React.ReactNode }) {
     });
 
     if (!strudelService.isReady) {
-      strudelService.init();
-      return;
+      void ensureStrudelReady().catch((error) => {
+        console.warn("[StrudelProvider] Init error caught:", error);
+      });
     }
 
     return () => {
@@ -108,12 +126,24 @@ export function StrudelProvider({ children }: { children: React.ReactNode }) {
     };
   }, [setMessage, setProgress, setReplState, setState]);
 
-  const setRoot = React.useCallback((el: HTMLDivElement) => {
-    strudelService.attach(el);
+  const setRoot = React.useCallback((el: HTMLDivElement | null) => {
+    attachOperationIdRef.current += 1;
+    const operationId = attachOperationIdRef.current;
 
-    return () => {
+    if (!el) {
       strudelService.detach();
-    };
+      return;
+    }
+
+    void ensureStrudelReady()
+      .then(async () => {
+        if (attachOperationIdRef.current !== operationId) return;
+        await strudelService.attach(el);
+      })
+      .catch((error) => {
+        if (attachOperationIdRef.current !== operationId) return;
+        console.warn("[StrudelProvider] Attach error caught:", error);
+      });
   }, []);
 
   const setCode = React.useCallback(

@@ -4,21 +4,13 @@ import { ReplTabs } from "./repl-tabs";
 import { Loader2 } from "lucide-react";
 
 export function StrudelRepl() {
-  const ref = React.useRef<HTMLDivElement>(null);
-
   const { setRoot, isAiUpdating } = useStrudel();
-
-  React.useEffect(() => {
-    if (ref.current) {
-      setRoot(ref.current);
-    }
-  }, [ref, setRoot]);
 
   return (
     <div className="relative flex-1 min-h-0 w-full flex flex-col">
       <ReplTabs />
       <div
-        ref={ref}
+        ref={setRoot}
         className="flex-1 min-h-0 flex flex-col justify-stretch items-stretch bg-background text-foreground *:h-full"
       />
 
