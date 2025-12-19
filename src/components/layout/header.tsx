@@ -22,7 +22,7 @@ export function Header() {
         <AuthButton />
       </header>
 
-      {showInfoModal && <InfoModal onClose={() => setShowInfoModal(false)} />}
+      <InfoModal open={showInfoModal} onOpenChange={setShowInfoModal} />
     </>
   );
 }

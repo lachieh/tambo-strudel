@@ -15,9 +15,12 @@ import {
   getAudioContext,
   initAudioOnFirstClick,
   registerSynthSounds,
+  setDefaultAudioContext,
   webaudioOutput,
+  webaudioRepl,
 } from "@strudel/webaudio";
 import { prebake } from "@/strudel/lib/prebake";
+import { audioBufferToWavBlob } from "@/strudel/lib/wav";
 import {
   StrudelMirror,
   StrudelMirrorOptions,
@@ -36,6 +39,14 @@ type CodeChangeCallback = (state: StrudelReplState) => void;
 
 type UpdateSource = "ai" | "user";
 
+type WebaudioOutputFn = (
+  hap: unknown,
+  deadline: number,
+  duration: number,
+  cps: number,
+  targetTime: number,
+) => void;
+
 const DEFAULT_CODE = `// Welcome to StrudelLM!
 // Write patterns here or ask the AI for help
 
@@ -53,12 +64,19 @@ stack(
 `;
 
 const ALLOWED_KEYBINDINGS = ["codemirror", "vim", "emacs", "vscode"] as const;
+const MAX_EXPORT_CYCLES = 64;
+// Hard caps on offline rendering to avoid massive OfflineAudioContext allocations.
+// MAX_EXPORT_FRAMES: 10M frames at 48kHz is ~208s (per channel).
+const MAX_EXPORT_SECONDS = 120;
+const MAX_EXPORT_FRAMES = 10_000_000;
 
 export class StrudelService {
   private static _instance: StrudelService | null = null;
 
   // Audio engine state
   private isAudioInitialized = false;
+  private isExporting = false;
+  private restartPlaybackAfterExport = false;
 
   // Editor state
   private editorInstance: StrudelMirror | null = null;
@@ -96,7 +114,168 @@ export class StrudelService {
   // Storage adapter (can be swapped for Jazz or localStorage)
   private storageAdapter: StrudelStorageAdapter | null = null;
 
+  private exportGuardedEditors = new WeakSet<StrudelMirror>();
+
   private constructor() {}
+
+  private ensureNotExporting(action: string): void {
+    if (this.isExporting) {
+      throw new Error(`${action} is disabled during export`);
+    }
+  }
+
+  private installEditorExportGuards(editor: StrudelMirror): void {
+    if (this.exportGuardedEditors.has(editor)) return;
+    this.exportGuardedEditors.add(editor);
+
+    const originalEvaluate = editor.evaluate.bind(editor);
+    editor.evaluate = async () => {
+      if (this.isExporting) {
+        this.restartPlaybackAfterExport = true;
+        return;
+      }
+      await originalEvaluate();
+    };
+
+    const originalToggle = editor.toggle.bind(editor);
+    editor.toggle = async () => {
+      if (this.isExporting) {
+        return;
+      }
+      await originalToggle();
+    };
+
+    const originalStop = editor.stop.bind(editor);
+    editor.stop = async () => {
+      if (this.isExporting) {
+        this.restartPlaybackAfterExport = false;
+        return;
+      }
+      await originalStop();
+    };
+  }
+
+  private static isValidCps(value: unknown): value is number {
+    return typeof value === "number" && Number.isFinite(value) && value > 0;
+  }
+
+  private static normalizeCps(value: unknown): number {
+    return StrudelService.isValidCps(value) ? value : 0.5;
+  }
+
+  private static coerceNumber(value: unknown): number | null {
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return Math.abs(value) <= MAX_EXPORT_CYCLES * 8 ? value : null;
+    }
+    if (
+      value &&
+      typeof value === "object" &&
+      "valueOf" in value &&
+      typeof (value as { valueOf: () => unknown }).valueOf === "function"
+    ) {
+      const coerced = Number((value as { valueOf: () => unknown }).valueOf());
+      if (!Number.isFinite(coerced)) return null;
+      return Math.abs(coerced) <= MAX_EXPORT_CYCLES * 8 ? coerced : null;
+    }
+    return null;
+  }
+
+
+  private static async withDefaultAudioContext<T>(
+    ctx: BaseAudioContext,
+    fn: () => Promise<T>,
+  ): Promise<T> {
+    const restoreTo = getAudioContext();
+
+    // Note: this mutates global Strudel/Superdough state and should only be used
+    // while real-time audio playback is paused.
+    setDefaultAudioContext(ctx);
+    try {
+      return await fn();
+    } finally {
+      setDefaultAudioContext(restoreTo);
+    }
+  }
+
+  private static async renderPatternToOfflineAudioBuffer({
+    getPattern,
+    cycles,
+    cps,
+    sampleRate,
+  }: {
+    getPattern: () => Promise<unknown>;
+    cycles: number;
+    cps: number;
+    sampleRate: number;
+  }): Promise<AudioBuffer> {
+    if (!StrudelService.isValidCps(cps)) {
+      throw new Error("Export failed: CPS must be greater than zero");
+    }
+    if (!Number.isFinite(sampleRate) || sampleRate <= 0) {
+      throw new Error("Export failed: sample rate must be a positive number");
+    }
+
+    const seconds = cycles / cps;
+    if (!Number.isFinite(seconds) || seconds <= 0) {
+      throw new Error(
+        "Export failed: duration must be a positive, finite number of seconds. Check that cycles and CPS are set correctly.",
+      );
+    }
+
+    const numFrames = Math.ceil(seconds * sampleRate);
+
+    // Constrain by both an absolute frame cap and a human-friendly time cap to
+    // avoid creating excessively large OfflineAudioContexts.
+    const maxFramesByTime = Math.ceil(MAX_EXPORT_SECONDS * sampleRate);
+    const maxFrames = Math.min(MAX_EXPORT_FRAMES, maxFramesByTime);
+    if (numFrames > maxFrames) {
+      const maxSeconds = Math.floor(maxFrames / sampleRate);
+      throw new Error(
+        `Export too long (${Math.round(seconds)}s). Max is about ${maxSeconds}s. Reduce cycles or increase CPS to shorten the duration.`,
+      );
+    }
+
+    const offlineContext = new OfflineAudioContext(2, numFrames, sampleRate);
+
+    return await StrudelService.withDefaultAudioContext(offlineContext, async () => {
+      const pattern = await getPattern();
+
+      if (!pattern) {
+        throw new Error("Evaluation failed");
+      }
+
+        const queryArc = (pattern as {
+          queryArc?: (begin: number, end: number, context: unknown) => unknown[];
+        }).queryArc;
+        if (typeof queryArc !== "function") {
+          throw new Error(
+            "Export failed: pattern does not support offline rendering (missing queryArc)",
+          );
+        }
+
+        const haps = queryArc(0, cycles, { _cps: cps, cyclist: "export" });
+        const offlineWebaudioOutput: WebaudioOutputFn =
+          webaudioOutput as unknown as WebaudioOutputFn;
+
+        for (const hap of haps) {
+          const hasOnsetFn = (hap as { hasOnset?: () => boolean }).hasOnset;
+          if (typeof hasOnsetFn !== "function" || !hasOnsetFn()) continue;
+
+          const wholeBegin = (hap as { whole?: { begin?: unknown } }).whole?.begin;
+          const wholeBeginValue = StrudelService.coerceNumber(wholeBegin);
+          if (wholeBeginValue === null) continue;
+
+          const durationCycles = (hap as { duration?: unknown }).duration;
+          const durationCyclesValue = StrudelService.coerceNumber(durationCycles) ?? 0;
+          const durationSeconds = durationCyclesValue / cps;
+          const targetTime = wholeBeginValue / cps;
+
+          offlineWebaudioOutput(hap, 0, durationSeconds, cps, targetTime);
+        }
+
+      return await offlineContext.startRendering();
+    });
+  }
 
   /**
    * Get or create the singleton instance
@@ -178,6 +357,15 @@ export class StrudelService {
   clearRevertNotification = (): void => {
     this.notifyStateChange({ revertNotification: null });
   };
+
+  /**
+   * Get the current cycles-per-second rate.
+   */
+  get cps(): number {
+    const value = (this.editorInstance?.repl.scheduler as { cps?: number } | null)
+      ?.cps;
+    return StrudelService.normalizeCps(value);
+  }
 
   // ============================================
   // Code Persistence (REPL/Thread Model)
@@ -889,7 +1077,7 @@ export class StrudelService {
         prebake: this.prebake,
       });
 
-const keybindings = getKeybindings();
+      const keybindings = getKeybindings();
       const resolvedKeybindings =
         keybindings &&
         (ALLOWED_KEYBINDINGS as readonly string[]).includes(keybindings)
@@ -899,6 +1087,8 @@ const keybindings = getKeybindings();
       if (typeof this.editorInstance.changeSetting === "function") {
         this.editorInstance.changeSetting("keybindings", resolvedKeybindings);
       }
+      this.installEditorExportGuards(this.editorInstance);
+
       await this.prebake();
 
       if (oldEditor) {
@@ -955,6 +1145,9 @@ const keybindings = getKeybindings();
   // ============================================
 
   play = async (): Promise<void> => {
+    if (this.isExporting) {
+      throw new Error("Cannot start playback during export");
+    }
     this.registerGlobalErrorHandlers();
     this.installConsoleErrorFilter();
     try {
@@ -983,13 +1176,97 @@ const keybindings = getKeybindings();
   };
 
   stop = (): void => {
+    if (this.isExporting) {
+      this.restartPlaybackAfterExport = false;
+      return;
+    }
     this.editorInstance?.repl.stop();
     this.pendingSchedulerWaitCancel?.();
     this.unregisterGlobalErrorHandlers();
     this.removeConsoleErrorFilter();
   };
 
+  exportWav = async (cycles: number): Promise<Blob> => {
+    if (!this.isReady) {
+      throw new Error("Strudel is still loading");
+    }
+    if (!Number.isFinite(cycles) || cycles <= 0) {
+      throw new Error("Cycles must be a positive number");
+    }
+    if (cycles > MAX_EXPORT_CYCLES) {
+      throw new Error(`Cycles must not exceed ${MAX_EXPORT_CYCLES}`);
+    }
+
+    if (this.isExporting) {
+      throw new Error("Export already in progress");
+    }
+
+    this.isExporting = true;
+
+    const code = this.getCode();
+    const wasPlaying = this.isPlaying;
+    this.restartPlaybackAfterExport = wasPlaying;
+    if (wasPlaying) {
+      this.editorInstance?.repl.stop();
+    }
+
+    try {
+      const cps = this.cps;
+      const sampleRate = getAudioContext().sampleRate;
+
+      const renderedBuffer = await StrudelService.renderPatternToOfflineAudioBuffer(
+        {
+          getPattern: async () => {
+            const repl = webaudioRepl({
+              getTime: () => 0,
+              transpiler,
+            });
+
+            const pattern = await repl.evaluate(code, false);
+            if (!pattern) {
+              const error = repl.state?.evalError;
+              if (error instanceof Error) {
+                throw error;
+              }
+              throw new Error(
+                typeof error === "string" ? error : "Evaluation failed",
+              );
+            }
+
+            return pattern;
+          },
+          cycles,
+          cps,
+          sampleRate,
+        },
+      );
+
+      if (renderedBuffer.length === 0) {
+        throw new Error(
+          "Export produced no audio. Check that your pattern plays sound in the selected range.",
+        );
+      }
+
+      return audioBufferToWavBlob(renderedBuffer);
+    } finally {
+      this.isExporting = false;
+      const shouldRestart = this.restartPlaybackAfterExport;
+      this.restartPlaybackAfterExport = false;
+
+      if (shouldRestart) {
+        try {
+          await this.play();
+        } catch {
+          // Ignore restart failures to avoid masking a successful export.
+        }
+      }
+    }
+  };
+
   evaluate = async (code: string, play: boolean = false): Promise<void> => {
+    if (this.isExporting) {
+      throw new Error("Evaluation is disabled during export");
+    }
     const result = await this.editorInstance?.repl.evaluate(code, play);
     if (!result) {
       throw new Error(
@@ -1091,8 +1368,9 @@ const keybindings = getKeybindings();
     // Save current state before attempting update
     const previousCode = this.getCode();
     const wasPlaying = this.isPlaying;
-
     try {
+      this.ensureNotExporting("Playback");
+
       // Stop playback first to avoid partial broken state
       if (wasPlaying) {
         this.stop();
@@ -1252,6 +1530,10 @@ const keybindings = getKeybindings();
    * Reset the editor to default code and stop playback
    */
   reset = (): void => {
+    if (this.isExporting) {
+      this.restartPlaybackAfterExport = false;
+      return;
+    }
     this.stop();
     this.clearError();
     this.setCode(DEFAULT_CODE);

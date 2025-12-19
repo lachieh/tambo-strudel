@@ -6,9 +6,18 @@ import {
   useTamboThread,
   useTamboThreadInput,
 } from "@tambo-ai/react";
-import { Play, Square, RotateCcw, BotIcon, Info, AlertCircle } from "lucide-react";
+import {
+  Play,
+  Square,
+  RotateCcw,
+  BotIcon,
+  Info,
+  AlertCircle,
+  Download,
+} from "lucide-react";
 import React from "react";
 import { InfoModal } from "@/components/info-modal";
+import { ExportModal } from "@/strudel/components/export-modal";
 
 const NOTIFICATION_AUTO_DISMISS_MS = 5000;
 
@@ -78,6 +87,7 @@ function replaceStrudelErrorContextAttachment(
 
 export function StrudelStatusBar() {
   const [showInfoModal, setShowInfoModal] = React.useState(false);
+  const [showExportModal, setShowExportModal] = React.useState(false);
   const {
     isPlaying,
     isReady,
@@ -240,6 +250,14 @@ export function StrudelStatusBar() {
             <span className="text-muted-foreground/60">loading...</span>
           )}
           <button
+            onClick={() => setShowExportModal(true)}
+            disabled={!isReady}
+            className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-30"
+          >
+            <Download className="w-3 h-3" />
+            export
+          </button>
+          <button
             onClick={() => setShowInfoModal(true)}
             className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
           >
@@ -249,8 +267,8 @@ export function StrudelStatusBar() {
         </div>
       </div>
 
-      {/* Info Modal */}
-      {showInfoModal && <InfoModal onClose={() => setShowInfoModal(false)} />}
+      <InfoModal open={showInfoModal} onOpenChange={setShowInfoModal} />
+      <ExportModal open={showExportModal} onOpenChange={setShowExportModal} />
     </>
   );
 }

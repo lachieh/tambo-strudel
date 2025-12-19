@@ -120,8 +120,8 @@ export function StrudelProvider({ children }: { children: React.ReactNode }) {
     (code: string, shouldPlay: boolean = false) => {
       strudelService.setCode(code);
       if (shouldPlay) {
-        strudelService.play().catch((error) => {
-          console.warn("[StrudelProvider] Play error caught:", error);
+        void strudelService.play().catch((err) => {
+          console.error("Failed to start playback:", err);
         });
       }
     },
@@ -209,14 +209,10 @@ export function StrudelProvider({ children }: { children: React.ReactNode }) {
       allRepls,
       getAllRepls,
       deleteRepl,
-      play: async () => {
-        try {
-          await strudelService.play();
-        } catch (error) {
-          // Error is already captured by the service's error handling
-          // This catch prevents unhandled rejection warnings
-          console.warn("[StrudelProvider] Play error caught:", error);
-        }
+      play: () => {
+        void strudelService.play().catch((err) => {
+          console.error("Failed to start playback:", err);
+        });
       },
       stop: strudelService.stop,
       reset: strudelService.reset,
