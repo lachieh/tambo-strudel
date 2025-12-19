@@ -29,6 +29,9 @@ type StrudelContextValue = {
   stop: () => void;
   reset: () => void;
   clearError: () => void;
+  /**
+   * Callback ref for attaching/detaching the Strudel editor root.
+   */
   setRoot: (el: HTMLDivElement | null) => void;
   isReady: boolean;
   isStorageLoaded: boolean;
@@ -43,13 +46,19 @@ export const StrudelContext = React.createContext<StrudelContextValue | null>(
 const strudelService = StrudelService.instance();
 
 let initPromise: Promise<void> | null = null;
+let initError: unknown = null;
 const ensureStrudelReady = (): Promise<void> => {
   if (strudelService.isReady) {
     return Promise.resolve();
   }
 
+  if (initError) {
+    return Promise.reject(initError);
+  }
+
   if (!initPromise) {
     initPromise = strudelService.init().catch((error) => {
+      initError = error;
       initPromise = null;
       throw error;
     });
@@ -116,6 +125,8 @@ export function StrudelProvider({ children }: { children: React.ReactNode }) {
 
     if (!strudelService.isReady) {
       void ensureStrudelReady().catch((error) => {
+        setState("error");
+        setMessage("Failed to initialize Strudel");
         console.warn("[StrudelProvider] Init error caught:", error);
       });
     }
@@ -138,7 +149,14 @@ export function StrudelProvider({ children }: { children: React.ReactNode }) {
     void ensureStrudelReady()
       .then(async () => {
         if (attachOperationIdRef.current !== operationId) return;
-        await strudelService.attach(el);
+        try {
+          await strudelService.attach(el);
+        } catch (error) {
+          if (attachOperationIdRef.current === operationId) {
+            strudelService.detach();
+          }
+          throw error;
+        }
       })
       .catch((error) => {
         if (attachOperationIdRef.current !== operationId) return;
