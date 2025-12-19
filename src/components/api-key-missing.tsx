@@ -39,7 +39,7 @@ export function ApiKeyMissing() {
         </p>
 
         <p className="text-xs text-muted-foreground">
-          Setup docs:{" "}
+          Setup docs (including where to put `NEXT_PUBLIC_TAMBO_API_KEY`):{" "}
           <a
             href="https://docs.tambo.co/getting-started/integrate"
             target="_blank"

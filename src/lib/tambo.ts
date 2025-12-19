@@ -12,6 +12,7 @@
  *
  */
 
+// See README.md ("Tambo integration") for a high-level map of how this repo uses Tambo.
 // Tambo docs: https://docs.tambo.co/getting-started/integrate
 // Components: https://docs.tambo.co/concepts/components/registering-with-tambo-provider
 // Tools: https://docs.tambo.co/concepts/tools/adding-tools

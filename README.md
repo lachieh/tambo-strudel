@@ -76,6 +76,8 @@ Key places we use Tambo in this repo:
 
 Relevant docs:
 
+- Requires `NEXT_PUBLIC_TAMBO_API_KEY` (and optionally `NEXT_PUBLIC_TAMBO_URL`); see `example.env.local`.
+
 - https://docs.tambo.co/getting-started/integrate
 - https://docs.tambo.co/concepts/components/
 - https://docs.tambo.co/concepts/tools/adding-tools
