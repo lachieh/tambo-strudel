@@ -11,6 +11,7 @@
 
 import { prebake } from "@/strudel/lib/prebake";
 import type {
+  StrudelMirror,
   StrudelMirrorOptions,
   StrudelReplState,
 } from "@strudel/codemirror";
@@ -47,8 +48,7 @@ export class StrudelService {
   private isAudioInitialized = false;
 
   // Editor state
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private editorInstance: any | null = null;
+  private editorInstance: StrudelMirror | null = null;
   private containerElement: HTMLElement | null = null;
   private editorOptions: Omit<StrudelMirrorOptions, "root"> = {};
 
@@ -482,6 +482,13 @@ export class StrudelService {
     }
   }
 
+  /**
+   * Apply theme settings to the Strudel editor and visualizations.
+   * This method is async due to dynamic imports.
+   *
+   * IMPORTANT: This method must be awaited when called to ensure
+   * the theme is properly applied before rendering.
+   */
   async fixTheme(): Promise<void> {
     const { setTheme } = await import("@strudel/draw");
 

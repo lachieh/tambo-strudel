@@ -125,68 +125,13 @@ const safeLocalStorageSetItem = (key: string, value: string): void => {
 
 // Best-effort opaque ID generation.
 // Uses crypto APIs when available, but must never be used for auth/session/security tokens.
-// Return value is an opaque UUID-like string.
-let nonSecureCounter = 0;
-let loggedRandomUuidFailure = false;
-let loggedGetRandomValuesFailure = false;
-
-// Formats 16 bytes into a UUID-like opaque string.
-// Input bytes may be non-cryptographic and must not be used for any security-sensitive purpose.
-const bytesToOpaqueUuidLikeString = (bytes: Uint8Array): string => {
-  const b = bytes.slice(0, 16);
-  b[6] = (b[6] & 0x0f) | 0x40;
-  b[8] = (b[8] & 0x3f) | 0x80;
-
-  const hex = Array.from(b)
-    .map((n) => n.toString(16).padStart(2, "0"))
-    .join("");
-
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
-};
-
 const bestEffortNonSecureId = (): string => {
   try {
-    const uuid = globalThis.crypto?.randomUUID?.();
-    if (uuid) return uuid;
-  } catch (error) {
-    if (process.env.NODE_ENV !== "production" && !loggedRandomUuidFailure) {
-      loggedRandomUuidFailure = true;
-      console.warn("bestEffortNonSecureId: randomUUID failed", error);
-    }
+    return globalThis.crypto.randomUUID();
+  } catch {
+    // Fallback to timestamp + random
+    return `${Date.now()}-${Math.random()}`;
   }
-
-  try {
-    const crypto = globalThis.crypto;
-    if (crypto?.getRandomValues) {
-      const bytes = new Uint8Array(16);
-      crypto.getRandomValues(bytes);
-      return bytesToOpaqueUuidLikeString(bytes);
-    }
-  } catch (error) {
-    if (process.env.NODE_ENV !== "production" && !loggedGetRandomValuesFailure) {
-      loggedGetRandomValuesFailure = true;
-      console.warn("bestEffortNonSecureId: getRandomValues failed", error);
-    }
-  }
-
-  nonSecureCounter = (nonSecureCounter + 1) % Number.MAX_SAFE_INTEGER;
-  const counter32 = nonSecureCounter >>> 0;
-  const now32 = Date.now() >>> 0;
-
-  const bytes = new Uint8Array(16);
-  bytes[0] = counter32 & 0xff;
-  bytes[1] = (counter32 >>> 8) & 0xff;
-  bytes[2] = (counter32 >>> 16) & 0xff;
-  bytes[3] = (counter32 >>> 24) & 0xff;
-  bytes[4] = now32 & 0xff;
-  bytes[5] = (now32 >>> 8) & 0xff;
-  bytes[6] = (now32 >>> 16) & 0xff;
-  bytes[7] = (now32 >>> 24) & 0xff;
-  for (let i = 8; i < bytes.length; i += 1) {
-    bytes[i] = Math.floor(Math.random() * 256);
-  }
-
-  return bytesToOpaqueUuidLikeString(bytes);
 };
 
 // Get or create anonymous context key (for users not logged in)
@@ -230,14 +175,19 @@ function useAuthIdentity() {
 // Changing this value changes which threads are visible in the UI.
 // NOTE: This is not an auth token. Do not use this value for permissions or other security decisions.
 // This hook assumes it only runs in the browser (client components).
-function useContextKey():
+function useContextKey({
+  userId,
+  isPending,
+}: {
+  userId: string | null;
+  isPending: boolean;
+}):
   | { contextKey: string; isReady: true }
   | { contextKey: null; isReady: false } {
-  const { isPending: isIdentityPending, userId } = useAuthIdentity();
   const [contextKey, setContextKey] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    if (isIdentityPending) return;
+    if (isPending) return;
 
     if (userId) {
       setContextKey(`strudel-user-${userId}`);
@@ -245,7 +195,7 @@ function useContextKey():
     }
 
     setContextKey(getOrCreateAnonymousContextKey());
-  }, [isIdentityPending, userId]);
+  }, [isPending, userId]);
 
   if (contextKey) {
     return { contextKey, isReady: true };
@@ -280,7 +230,10 @@ function AppContent() {
   const [showBetaModal, setShowBetaModal] = React.useState(false);
   const lastContextKeyRef = React.useRef<string | null>(null);
   const authIdentity = useAuthIdentity();
-  const contextKeyState = useContextKey();
+  const contextKeyState = useContextKey({
+    userId: authIdentity.userId,
+    isPending: authIdentity.isPending,
+  });
   const isTamboTokenUpdating = useIsTamboTokenUpdating();
   // We intentionally wait for Better Auth identity to settle AND Tambo token exchange to complete
   // before querying threads, to avoid 401 errors from API calls made before auth is ready.
@@ -358,7 +311,8 @@ function AppContent() {
   // Thread/REPL association is no longer needed with single-REPL model
   // All threads share the same REPL code
 
-  if (!contextKeyState.isReady) {
+  // Wait for auth and context key to be fully ready before rendering UI
+  if (!contextKeyAndIdentityReady) {
     return <LoadingScreen />;
   }
 
